@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Who's the Spy</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="client.js" defer></script>
+</head>
+
+<body>
+    <div class="home-container">
+        <div class="home-card">
+            <div class="title-section">
+                <h1 class="main-title">Who's the Spy</h1>
+                <p class="main-subtitle">Find the imposter before time runs out!</p>
+            </div>
+
+            <!-- Create Game Section -->
+            <div class="section create-section">
+                <h2 class="section-header">Create New Game</h2>
+                <div class="input-group">
+                    <div class="field-container">
+                        <label class="input-label" for="createName">Your Nickname</label>
+                        <input type="text" id="createName" class="input-field" placeholder="E.g. Agent 007"
+                            maxlength="15">
+                    </div>
+                </div>
+                <button id="createBtn" class="btn btn-primary">Create Game</button>
+            </div>
+
+            <hr class="divider">
+
+            <!-- Join Game Section -->
+            <div class="section join-section">
+                <h2 class="section-header">Join Existing Game</h2>
+                <div class="input-group">
+                    <div class="field-container">
+                        <label class="input-label" for="joinCode">Game Code</label>
+                        <input type="text" id="joinCode" class="input-field font-mono tracking-widest uppercase"
+                            placeholder="6-LETTER CODE" maxlength="6">
+                    </div>
+                    <div class="field-container">
+                        <label class="input-label" for="joinName">Your Nickname</label>
+                        <input type="text" id="joinName" class="input-field" placeholder="E.g. Double Agent"
+                            maxlength="15">
+                    </div>
+                </div>
+                <button id="joinBtn" class="btn btn-secondary">Join Game</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const createBtn = document.getElementById('createBtn');
+            const joinBtn = document.getElementById('joinBtn');
+            const session = getSession();
+
+            createBtn.addEventListener('click', () => {
+                const name = document.getElementById('createName').value.trim();
+                if (!name) return alert('Please enter your name');
+                socket.emit('create-game', { playerName: name });
+            });
+
+            joinBtn.addEventListener('click', () => {
+                const code = document.getElementById('joinCode').value.trim().toUpperCase();
+                const name = document.getElementById('joinName').value.trim();
+                if (!code || !name) return alert('Please enter code and name');
+                socket.emit('join-game', { gameCode: code, playerName: name, previousPlayerId: session.playerId });
+            });
+
+            socket.on('game-created', ({ gameCode, playerId }) => {
+                saveSession(gameCode, playerId, document.getElementById('createName').value);
+                window.location.href = `/lobby?code=${gameCode}`;
+            });
+
+            socket.on('game-joined', ({ gameCode, playerId }) => {
+                saveSession(gameCode, playerId, document.getElementById('joinName').value);
+                window.location.href = `/lobby?code=${gameCode}`;
+            });
+        });
+    </script>
+</body>
+
+</html>

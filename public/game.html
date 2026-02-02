@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Playing - Who's the Spy</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="client.js" defer></script>
+</head>
+
+<body>
+    <div class="home-container" style="padding: 0; height: 100vh;">
+        <div class="home-card"
+            style="padding: 0; height: 100vh; width: 100%; display: flex; flex-direction: column; overflow: hidden; border-radius: 0; border: none;">
+
+            <!-- Header -->
+            <header class="game-header">
+                <div style="display: flex; align-items: center; gap: 16px;">
+                    <span id="headerCode" class="game-code-badge">...</span>
+                    <div>
+                        <h1 style="font-size: 14px; font-weight: 700; color: var(--text-input); line-height: 1;">Who's
+                            the Spy</h1>
+                        <p
+                            style="font-size: 11px; color: var(--subtitle); margin-top: 4px; text-transform: uppercase; letter-spacing: 0.5px;">
+                            Round <span id="roundCounter" style="color: var(--text-input);">1</span> •
+                            <span id="phaseIndicator"
+                                style="color: var(--secondary); text-transform: uppercase;">WAITING</span> •
+                            <span id="playerNameHeader" style="color: var(--primary); text-transform: none;">...</span>
+                        </p>
+                    </div>
+                </div>
+                <button id="leaveBtn"
+                    style="background: none; border: none; font-size: 12px; font-weight: 600; color: var(--subtitle); cursor: pointer; transition: color 0.2s;">
+                    EXIT
+                </button>
+            </header>
+
+            <!-- Word Banner -->
+            <div id="wordCard" class="word-banner">
+                <div style="display: flex; flex-direction: column;">
+                    <span class="input-label" style="font-size: 10px; margin-bottom: 4px;">Your Word</span>
+                    <h2 id="myWord"
+                        style="font-size: 28px; font-weight: 800; color: var(--text-input); line-height: 1;">...</h2>
+                </div>
+                <div id="roleBadge" class="badge"
+                    style="background-color: var(--error); color: #FFFFFF; padding: 4px 12px; font-weight: 800;">
+                    IMPOSTER</div>
+            </div>
+
+            <!-- Player Status Bar -->
+            <div id="statusBar" class="status-bar"></div>
+
+            <!-- Game Management UI (Description/Voting/Results) -->
+            <div id="activePhaseUI">
+
+                <!-- Voting Grid -->
+                <div id="votingGrid" class="voting-grid hidden"></div>
+                <div id="voteActionArea" class="hidden" style="text-align: center; padding: 8px;">
+                    <p style="font-size: 13px; font-weight: 600; color: var(--secondary);">Vote successfully submitted!
+                    </p>
+                </div>
+
+                <!-- Results UI -->
+                <div id="resultsUI" class="results-container hidden">
+                    <h2 id="resultTitle" style="font-size: 20px; font-weight: 700; margin-bottom: 12px;">Round Ended
+                    </h2>
+                    <div id="eliminatedInfo" style="font-size: 14px; color: var(--subtitle);"></div>
+                    <div style="margin-top: 24px;">
+                        <p id="nextRoundTimer" style="font-size: 11px; color: var(--subtitle); font-style: italic;">
+                            Preparing for next round...</p>
+                        <button id="newGameBtn" class="btn btn-primary hidden" style="margin-top: 12px;">Start New
+                            Game</button>
+                    </div>
+                </div>
+            </div>
+
+
+
+            <!-- Chat/Clues Area -->
+            <div id="chatMessages" class="chat-area">
+                <div class="msg-system">Game Log Started</div>
+            </div>
+
+            <!-- Input Footer -->
+            <footer id="gameInputFooter" class="game-input-footer">
+                <form id="unifiedForm" class="input-wrapper" style="position: relative;">
+                    <label id="inputHint" class="badge"
+                        style="position: absolute; top: -32px; left: 16px; background-color: var(--primary); color: var(--dark-text); padding: 4px 10px; font-size: 10px;">IT'S
+                        YOUR TURN!</label>
+                    <div style="flex-grow: 1;">
+                        <textarea id="unifiedInput" rows="1" class="input-field pill-input"
+                            style="padding-top: 13px; padding-bottom: 13px; resize: none; overflow: hidden; min-height: 48px;"
+                            placeholder="Message..."></textarea>
+                    </div>
+                    <button type="submit" id="unifiedBtn" class="btn btn-primary round-btn">
+                        <svg id="sendIcon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                            <line x1="22" y1="2" x2="11" y2="13"></line>
+                            <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                        </svg>
+                        <svg id="descIcon" class="hidden" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                        </svg>
+                    </button>
+                </form>
+            </footer>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const code = getQueryParam('code');
+            const session = getSession();
+
+            if (!code || !session.playerId) {
+                window.location.href = '/';
+                return;
+            }
+
+            document.getElementById('headerCode').textContent = code;
+
+            socket.emit('join-game', {
+                gameCode: code,
+                playerName: session.playerName,
+                previousPlayerId: session.playerId
+            });
+
+            // Elements
+            const phaseIndicator = document.getElementById('phaseIndicator');
+            const myWordEl = document.getElementById('myWord');
+            const wordCard = document.getElementById('wordCard');
+            const roundCounter = document.getElementById('roundCounter');
+            const playerNameHeader = document.getElementById('playerNameHeader');
+
+            // UI
+            const votingGrid = document.getElementById('votingGrid');
+            const resultsUI = document.getElementById('resultsUI');
+            const activePhaseUI = document.getElementById('activePhaseUI');
+            const gameInputFooter = document.getElementById('gameInputFooter');
+
+            // Input
+            const unifiedForm = document.getElementById('unifiedForm');
+            const unifiedInput = document.getElementById('unifiedInput');
+            const unifiedBtn = document.getElementById('unifiedBtn');
+            const sendIcon = document.getElementById('sendIcon');
+            const descIcon = document.getElementById('descIcon');
+            const inputHint = document.getElementById('inputHint');
+
+            let gameState = null;
+            let myId = session.playerId;
+            let amIImposter = false;
+            let selectedVoteId = null;
+
+            socket.on('game-state-update', (game) => {
+                const wasCleared = gameState && game.chatHistory.length < gameState.chatHistory.length;
+                gameState = game;
+                updateMyIdentity(game);
+                renderUI(game);
+                if (wasCleared) {
+                    renderChatHistory(game.chatHistory);
+                }
+            });
+
+            socket.on('game-started', (game) => {
+                gameState = game;
+                updateMyIdentity(game);
+                renderUI(game);
+                renderChatHistory(game.chatHistory);
+            });
+
+            socket.on('game-joined', ({ gameCode, playerId, gameState: game }) => {
+                saveSession(gameCode, playerId, session.playerName);
+                myId = playerId;
+                gameState = game;
+                updateMyIdentity(game);
+                renderUI(game);
+                renderChatHistory(game.chatHistory);
+            });
+
+            socket.on('chat-message', (msg) => {
+                addChatMessage(msg);
+            });
+
+            function updateMyIdentity(game) {
+                const me = game.players.find(p => p.id === myId);
+                const badge = document.getElementById('roleBadge');
+
+                if (me && me.status === 'waiting') {
+                    wordCard.classList.remove('is-imposter');
+                    badge.classList.remove('hidden');
+                    badge.style.backgroundColor = 'var(--subtitle)';
+                    badge.style.color = 'var(--dark-text)';
+                    badge.textContent = 'SPECTATOR';
+                    myWordEl.textContent = "WAITING FOR NEXT GAME";
+                    myWordEl.style.fontSize = "16px";
+                    amIImposter = false;
+                    return;
+                }
+
+                if (me) {
+                    myWordEl.style.fontSize = "";
+                    amIImposter = me.role === 'imposter';
+                    if (amIImposter) {
+                        wordCard.classList.add('is-imposter');
+                        badge.classList.remove('hidden');
+                        badge.style.backgroundColor = 'var(--error)';
+                        badge.style.color = '#FFFFFF';
+                        badge.textContent = 'IMPOSTER';
+                    } else {
+                        wordCard.classList.remove('is-imposter');
+                        badge.classList.add('hidden');
+                    }
+                    myWordEl.textContent = me.word;
+                } else {
+                    myWordEl.textContent = "SPECTATOR";
+                }
+            }
+
+            function renderUI(game) {
+                phaseIndicator.textContent = game.gamePhase;
+                roundCounter.textContent = game.currentRound;
+                playerNameHeader.textContent = session.playerName;
+
+                votingGrid.classList.add('hidden');
+                resultsUI.classList.add('hidden');
+                document.getElementById('voteActionArea').classList.add('hidden');
+
+                if (game.gamePhase === 'description') renderDescriptionUI(game);
+                else if (game.gamePhase === 'voting') renderVotingUI(game);
+                else if (game.gamePhase === 'results' || game.gamePhase === 'ended') renderResultsUI(game);
+
+                renderStatusBar(game);
+                updateInputState(game);
+            }
+
+            function renderDescriptionUI(game) {
+                // Simplified: other UI elements (status bar/input) already show turn status
+            }
+
+            function renderVotingUI(game) {
+                votingGrid.classList.remove('hidden');
+                votingGrid.innerHTML = '';
+
+                const me = game.players.find(p => p.id === myId);
+                const canVote = me && me.status === 'active' && !me.hasVoted;
+
+                game.players.forEach(p => {
+                    if (p.status !== 'active') return;
+
+                    const btn = document.createElement('button');
+                    const isMe = p.id === myId;
+                    const isSelected = selectedVoteId === p.id;
+
+                    btn.className = `vote-card ${isSelected ? 'selected' : ''}`;
+                    btn.disabled = isMe || !canVote;
+
+                    btn.onclick = (e) => {
+                        e.preventDefault();
+                        if (canVote) {
+                            selectedVoteId = p.id;
+                            renderVotingUI(game);
+                            socket.emit('submit-vote', { gameCode: code, votedPlayerId: p.id });
+                        }
+                    };
+
+                    btn.innerHTML = `
+                         <div class="avatar ${isSelected ? 'is-me' : ''}" style="margin-right: 0; width: 32px; height: 32px; font-size: 14px; background-color: ${isSelected ? 'var(--error)' : 'var(--subtitle)'}">
+                            ${p.name[0].toUpperCase()}
+                         </div>
+                         <span class="player-name" style="font-size: 12px; text-align: center; width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${p.name}</span>
+                    `;
+                    votingGrid.appendChild(btn);
+                });
+
+                if (me && me.hasVoted) {
+                    votingGrid.style.pointerEvents = 'none';
+                    votingGrid.style.opacity = '0.5';
+                    document.getElementById('voteActionArea').classList.remove('hidden');
+                }
+            }
+
+            function renderResultsUI(game) {
+                resultsUI.classList.remove('hidden');
+                const title = document.getElementById('resultTitle');
+                const info = document.getElementById('eliminatedInfo');
+                const nextTimer = document.getElementById('nextRoundTimer');
+                const newGameBtn = document.getElementById('newGameBtn');
+                const res = game.lastRoundResult;
+
+                if (!res) return;
+
+                let infoHtml = '';
+
+                if (game.gamePhase === 'ended') {
+                    // Winner Header
+                    title.textContent = res.winner === 'civilians' ? "Civilians Win!" : "Imposter Wins!";
+                    title.style.color = res.winner === 'civilians' ? 'var(--secondary)' : 'var(--error)';
+                    title.style.fontSize = '24px';
+
+                    // Subtitle
+                    infoHtml += `<div class="results-header" style="gap: 4px;">`;
+                    if (res.eliminatedName) {
+                        infoHtml += `<div style="font-size: 14px; color: var(--subtitle);">${res.eliminatedName} was eliminated</div>`;
+                        infoHtml += `<div style="font-size: 11px; font-weight: 800; color: ${res.eliminatedRole === 'imposter' ? 'var(--error)' : 'var(--secondary)'}; letter-spacing: 1px;">(${res.eliminatedRole.toUpperCase()})</div>`;
+                    } else {
+                        infoHtml += `<div style="font-size: 14px; color: var(--subtitle); font-weight: 600;">It was a Tie! No one was eliminated.</div>`;
+                    }
+                    infoHtml += `</div>`;
+
+                    // Imposter Reveal
+                    infoHtml += `
+                        <div style="margin-top: 4px;">
+                            <span class="results-label">The Imposter Was</span>
+                            <div class="results-value" style="font-size: 20px; color: var(--primary);">${res.imposterName}</div>
+                        </div>
+                    `;
+
+                    // Word Grid
+                    infoHtml += `
+                        <div class="results-grid">
+                            <div>
+                                <span class="results-label">Civilian's Word</span>
+                                <div class="results-value" style="color: var(--secondary);">${res.civilianWord}</div>
+                            </div>
+                            <div>
+                                <span class="results-label">Imposter's Word</span>
+                                <div class="results-value" style="color: var(--error);">${res.imposterWord}</div>
+                            </div>
+                        </div>
+                    `;
+
+                    nextTimer.classList.add('hidden');
+                    const me = game.players.find(p => p.id === myId);
+                    if (me && me.isCreator) {
+                        newGameBtn.classList.remove('hidden');
+                        newGameBtn.style.marginTop = "0px";
+                    }
+                } else {
+                    // Middle Round Results
+                    title.textContent = "Round Results";
+                    title.style.color = "var(--text-input)";
+                    title.style.fontSize = "20px";
+
+                    infoHtml += `<div class="results-header" style="margin-bottom: 4px; gap: 4px;">`;
+                    if (res.eliminatedName) {
+                        infoHtml += `<div style="font-size: 14px; color: var(--text-input);"><strong>${res.eliminatedName}</strong> was eliminated</div>`;
+                        infoHtml += `<div style="font-size: 11px; font-weight: 800; color: ${res.eliminatedRole === 'imposter' ? 'var(--error)' : 'var(--secondary)'}; letter-spacing: 1px;">(${res.eliminatedRole.toUpperCase()})</div>`;
+                    } else {
+                        infoHtml += `<div style="font-size: 14px; color: var(--subtitle); font-weight: 500;">No one was eliminated this round.</div>`;
+                    }
+                    infoHtml += `</div>`;
+
+                    nextTimer.classList.remove('hidden');
+                }
+
+                info.innerHTML = infoHtml;
+            }
+
+            function renderStatusBar(game) {
+                const bar = document.getElementById('statusBar');
+                bar.innerHTML = '';
+                const turnId = game.turnOrder[game.currentTurnIndex];
+
+                game.players.forEach(p => {
+                    const isTurn = p.id === turnId;
+                    const div = document.createElement('div');
+
+                    div.className = `status-pill ${p.status === 'active' ? 'active' : ''} ${isTurn ? 'current' : ''}`;
+
+                    let statusColor = 'var(--secondary)';
+                    if (p.status === 'disconnected') statusColor = 'rgba(255,255,255,0.2)';
+                    else if (p.status === 'eliminated') statusColor = 'var(--error)';
+                    else if (p.status === 'waiting') statusColor = '#F59E0B';
+
+                    div.innerHTML = `
+                        <span class="dot" style="background-color: ${statusColor}"></span>
+                        <span style="font-weight: 600;">${p.name}</span>
+                    `;
+                    bar.appendChild(div);
+                });
+            }
+
+            function updateInputState(game) {
+                const me = game.players.find(p => p.id === myId);
+                const turnId = game.turnOrder[game.currentTurnIndex];
+                const isMyTurn = (game.gamePhase === 'description' && turnId === myId && !me.hasDescribed);
+
+                unifiedInput.disabled = false;
+                unifiedBtn.disabled = false;
+                inputHint.classList.add('hidden');
+                sendIcon.classList.remove('hidden');
+                descIcon.classList.add('hidden');
+
+                if (game.gamePhase === 'description') {
+                    if (isMyTurn) {
+                        unifiedInput.placeholder = "Describe your word...";
+                        unifiedInput.style.borderColor = 'var(--primary)';
+                        sendIcon.classList.add('hidden');
+                        descIcon.classList.remove('hidden');
+                        inputHint.classList.remove('hidden');
+                    } else {
+                        const turnPlayer = game.players.find(p => p.id === turnId);
+                        unifiedInput.placeholder = `Waiting for ${turnPlayer ? turnPlayer.name : 'player'}...`;
+                        unifiedInput.disabled = true;
+                        unifiedBtn.disabled = true;
+                        unifiedBtn.style.opacity = "0.5";
+                        unifiedInput.style.borderColor = 'var(--input-border)';
+                    }
+                } else if (game.gamePhase === 'voting') {
+                    unifiedInput.placeholder = "Voting in progress...";
+                    unifiedInput.disabled = true;
+                    unifiedBtn.disabled = true;
+                    unifiedBtn.style.opacity = "0.5";
+                    unifiedInput.style.borderColor = 'var(--input-border)';
+                }
+
+                if (game.gamePhase === 'results' || game.gamePhase === 'ended') {
+                    gameInputFooter.classList.add('hidden');
+                } else {
+                    gameInputFooter.classList.remove('hidden');
+                }
+            }
+
+            function renderChatHistory(history) {
+                const box = document.getElementById('chatMessages');
+                box.innerHTML = '<div class="msg-system">Game Log Started</div>';
+                if (history && history.length > 0) {
+                    history.forEach(msg => addChatMessage(msg));
+                }
+            }
+
+            function addChatMessage(msg) {
+                const box = document.getElementById('chatMessages');
+                const div = document.createElement('div');
+                const isMe = msg.sender === session.playerName;
+
+                if (msg.type === 'system') {
+                    div.className = 'msg-system';
+                    div.textContent = msg.message;
+                } else if (msg.type === 'description') {
+                    div.className = 'clue-item';
+                    div.innerHTML = `
+                         <div class="clue-header">
+                            <span class="clue-label">${msg.sender}</span>
+                         </div>
+                         <div class="clue-body">
+                             ${msg.message}
+                         </div>
+                    `;
+                } else {
+                    div.className = `chat-bubble ${isMe ? 'sent' : 'received'}`;
+                    div.innerHTML = `
+                        <div class="chat-header">
+                            <span class="chat-label">${msg.sender}</span>
+                        </div>
+                        <div class="chat-body">${msg.message}</div>
+                    `;
+                }
+
+                box.appendChild(div);
+                box.scrollTop = box.scrollHeight;
+            }
+
+            unifiedInput.addEventListener('input', function () {
+                this.style.height = 'auto';
+                this.style.height = (this.scrollHeight) + 'px';
+            });
+
+            unifiedInput.addEventListener('keypress', function (e) {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    unifiedForm.dispatchEvent(new Event('submit'));
+                }
+            });
+
+            unifiedForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                const text = unifiedInput.value.trim();
+                if (!text) return;
+
+                const me = gameState.players.find(p => p.id === myId);
+                const turnId = gameState.turnOrder[gameState.currentTurnIndex];
+                const isMyTurn = (gameState.gamePhase === 'description' && turnId === myId && !me.hasDescribed);
+
+                if (isMyTurn) {
+                    socket.emit('submit-description', { gameCode: code, description: text });
+                } else {
+                    socket.emit('send-chat', { gameCode: code, message: text });
+                }
+
+                unifiedInput.value = '';
+                unifiedInput.style.height = 'auto';
+            });
+
+            document.getElementById('newGameBtn').addEventListener('click', () => {
+                socket.emit('start-new-game', { gameCode: code });
+            });
+
+            document.getElementById('leaveBtn').addEventListener('click', () => {
+                clearSession();
+                window.location.href = '/';
+            });
+        });
+    </script>
+</body>
+
+</html>
