@@ -64,6 +64,14 @@ docker build -t who-is-the-spy .
 docker run -p 3000:3000 who-is-the-spy
 ```
 
+## 📖 Documentation
+
+- **[Technical Implementation Guide](docs/TECHNICAL.md)** - Deep dive into the game architecture, Socket.io events, state machine, and core game logic.
+
+## 🤝 Contributing
+
+Contributions are welcome! Feel free to open issues or submit pull requests.
+
 ---
 
 *Made with ❤️ for great game nights.*
