@@ -451,12 +451,21 @@ class GameManager {
         let winner = null;
 
         if (candidates.length === 1) {
-            elimId = candidates[0];
-            const p = game.players.find(pl => pl.id === elimId);
-            p.status = 'eliminated';
-            this.addSystemMessage(game, `${p.name} was eliminated! Role: ${p.role}`);
+            const votedTarget = candidates[0];
 
-            if (p.role === 'imposter') winner = 'civilians';
+            // Check if "none" won
+            if (votedTarget === 'none') {
+                this.addSystemMessage(game, "Vote for 'None' won! No one eliminated.");
+            } else {
+                elimId = votedTarget;
+                const p = game.players.find(pl => pl.id === elimId);
+                if (p) {
+                    p.status = 'eliminated';
+                    this.addSystemMessage(game, `${p.name} was eliminated! Role: ${p.role}`);
+
+                    if (p.role === 'imposter') winner = 'civilians';
+                }
+            }
         } else {
             this.addSystemMessage(game, "Tie vote! No one eliminated.");
         }
