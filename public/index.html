@@ -54,6 +54,13 @@
                 </div>
                 <button id="joinBtn" class="btn btn-secondary">Join Game</button>
             </div>
+
+            <!-- Version Footer -->
+            <div style="text-align: center; margin-top: 24px; padding-top: 16px; border-top: 1px solid rgba(255,255,255,0.1);">
+                <p style="color: #666; font-size: 12px; font-family: 'Inter', sans-serif;">
+                    Version <span id="app-version">...</span>
+                </p>
+            </div>
         </div>
     </div>
 
@@ -62,6 +69,34 @@
             const createBtn = document.getElementById('createBtn');
             const joinBtn = document.getElementById('joinBtn');
             const session = getSession();
+
+            // Fetch and display version
+            fetch('/version')
+                .then(res => res.json())
+                .then(data => {
+                    document.getElementById('app-version').textContent = data.version;
+                })
+                .catch(() => {
+                    document.getElementById('app-version').textContent = 'unknown';
+                });
+
+            // Check for URL parameters (shareable link)
+            const urlCode = getQueryParam('code');
+            const urlName = getQueryParam('name');
+
+            if (urlCode && urlName) {
+                // Auto-join with URL parameters
+                document.getElementById('joinCode').value = urlCode;
+                document.getElementById('joinName').value = urlName;
+
+                // Automatically trigger join
+                socket.emit('join-game', {
+                    gameCode: urlCode.toUpperCase(),
+                    playerName: urlName,
+                    previousPlayerId: session.playerId
+                });
+                return;
+            }
 
             createBtn.addEventListener('click', () => {
                 const name = document.getElementById('createName').value.trim();

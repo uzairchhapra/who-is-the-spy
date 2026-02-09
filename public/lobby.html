@@ -30,6 +30,21 @@
                     </svg>
                 </div>
                 <p class="main-subtitle" style="font-size: 12px; margin-top: 8px;">Tap code to copy</p>
+
+                <!-- Shareable URL Section -->
+                <div style="margin-top: 24px;">
+                    <label class="input-label" style="margin-bottom: 8px; display: block;">Share Game Link</label>
+                    <div class="copy-container" id="copyUrlBtn" style="padding: 12px 16px; cursor: pointer;">
+                        <p id="shareUrl" style="font-size: 12px; color: var(--text-input); word-break: break-all; font-family: 'Inter', monospace; margin: 0;">...</p>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" stroke="currentColor"
+                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                            style="color: var(--subtitle); opacity: 0.6; flex-shrink: 0;">
+                            <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path>
+                            <rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect>
+                        </svg>
+                    </div>
+                    <p class="main-subtitle" style="font-size: 12px; margin-top: 8px;">Anyone with this link can join with a random name</p>
+                </div>
             </div>
 
             <hr class="divider" style="margin-bottom: 32px;">
@@ -68,6 +83,21 @@
             }
 
             document.getElementById('displayCode').textContent = code;
+
+            // Generate and display shareable URL
+            const baseUrl = window.location.origin;
+            const shareUrl = `${baseUrl}/?code=${code}&name=${generateRandomName()}`;
+            document.getElementById('shareUrl').textContent = shareUrl;
+
+            // Copy URL button
+            const copyUrlBtn = document.getElementById('copyUrlBtn');
+            copyUrlBtn.addEventListener('click', () => {
+                navigator.clipboard.writeText(shareUrl).then(() => {
+                    const originalHtml = copyUrlBtn.innerHTML;
+                    copyUrlBtn.innerHTML = '<p style="font-size: 12px; color: var(--secondary); margin: 0; font-weight: 600;">Link Copied!</p>';
+                    setTimeout(() => copyUrlBtn.innerHTML = originalHtml, 2000);
+                });
+            });
 
             socket.emit('join-game', {
                 gameCode: code,
