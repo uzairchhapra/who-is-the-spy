@@ -80,24 +80,19 @@
                     document.getElementById('app-version').textContent = 'unknown';
                 });
 
-            // Check for URL parameters (shareable link)
-            const urlCode = getQueryParam('code');
-            const urlName = getQueryParam('name');
+            // Set up socket event listeners FIRST (before auto-join)
+            socket.on('game-created', ({ gameCode, playerId }) => {
+                saveSession(gameCode, playerId, document.getElementById('createName').value);
+                window.location.href = `/lobby?code=${gameCode}`;
+            });
 
-            if (urlCode && urlName) {
-                // Auto-join with URL parameters
-                document.getElementById('joinCode').value = urlCode;
-                document.getElementById('joinName').value = urlName;
+            socket.on('game-joined', ({ gameCode, playerId }) => {
+                const playerName = document.getElementById('joinName').value || getQueryParam('name');
+                saveSession(gameCode, playerId, playerName);
+                window.location.href = `/lobby?code=${gameCode}`;
+            });
 
-                // Automatically trigger join
-                socket.emit('join-game', {
-                    gameCode: urlCode.toUpperCase(),
-                    playerName: urlName,
-                    previousPlayerId: session.playerId
-                });
-                return;
-            }
-
+            // Set up button event listeners
             createBtn.addEventListener('click', () => {
                 const name = document.getElementById('createName').value.trim();
                 if (!name) return alert('Please enter your name');
@@ -111,15 +106,27 @@
                 socket.emit('join-game', { gameCode: code, playerName: name, previousPlayerId: session.playerId });
             });
 
-            socket.on('game-created', ({ gameCode, playerId }) => {
-                saveSession(gameCode, playerId, document.getElementById('createName').value);
-                window.location.href = `/lobby?code=${gameCode}`;
-            });
+            // Check for URL parameters (shareable link) - do this AFTER setting up listeners
+            const urlCode = getQueryParam('code');
+            let urlName = getQueryParam('name');
 
-            socket.on('game-joined', ({ gameCode, playerId }) => {
-                saveSession(gameCode, playerId, document.getElementById('joinName').value);
-                window.location.href = `/lobby?code=${gameCode}`;
-            });
+            if (urlCode) {
+                // If no name in URL, generate a random one
+                if (!urlName) {
+                    urlName = generateRandomName();
+                }
+
+                // Auto-join with URL parameters
+                document.getElementById('joinCode').value = urlCode;
+                document.getElementById('joinName').value = urlName;
+
+                // Automatically trigger join
+                socket.emit('join-game', {
+                    gameCode: urlCode.toUpperCase(),
+                    playerName: urlName,
+                    previousPlayerId: session.playerId
+                });
+            }
         });
     </script>
 </body>
