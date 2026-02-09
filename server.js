@@ -3,6 +3,7 @@ const http = require('http');
 const socketIo = require('socket.io');
 const GameManager = require('./game-manager');
 const path = require('path');
+const { version } = require('./package.json');
 
 const app = express();
 const server = http.createServer(app);
@@ -23,6 +24,7 @@ app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public/index.html'
 app.get('/lobby', (req, res) => res.sendFile(path.join(__dirname, 'public/lobby.html')));
 app.get('/game', (req, res) => res.sendFile(path.join(__dirname, 'public/game.html')));
 app.get('/health', (req, res) => res.sendStatus(200));
+app.get('/version', (req, res) => res.json({ version }));
 
 io.on('connection', (socket) => {
     // console.log('New connection:', socket.id); // Disabled log spam
@@ -119,6 +121,21 @@ io.on('connection', (socket) => {
         const result = gameManager.startNewGame(gameCode, playerId);
         if (result.error) socket.emit('error', { message: result.error });
         else io.to(gameCode).emit('game-started', result.game);
+    });
+
+    socket.on('update-player-name', ({ gameCode, newName }) => {
+        const playerId = gameManager.getPlayerId(socket.id);
+        const result = gameManager.updatePlayerName(gameCode, playerId, newName);
+        if (result.error) {
+            socket.emit('error', { message: result.error });
+        } else {
+            io.to(gameCode).emit('game-state-update', result.game);
+            io.to(gameCode).emit('player-name-updated', {
+                playerId,
+                oldName: result.oldName,
+                newName: result.newName
+            });
+        }
     });
 
     socket.on('disconnect', () => {

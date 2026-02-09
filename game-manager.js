@@ -451,12 +451,21 @@ class GameManager {
         let winner = null;
 
         if (candidates.length === 1) {
-            elimId = candidates[0];
-            const p = game.players.find(pl => pl.id === elimId);
-            p.status = 'eliminated';
-            this.addSystemMessage(game, `${p.name} was eliminated! Role: ${p.role}`);
+            const votedTarget = candidates[0];
 
-            if (p.role === 'imposter') winner = 'civilians';
+            // Check if "none" won
+            if (votedTarget === 'none') {
+                this.addSystemMessage(game, "Vote for 'None' won! No one eliminated.");
+            } else {
+                elimId = votedTarget;
+                const p = game.players.find(pl => pl.id === elimId);
+                if (p) {
+                    p.status = 'eliminated';
+                    this.addSystemMessage(game, `${p.name} was eliminated! Role: ${p.role}`);
+
+                    if (p.role === 'imposter') winner = 'civilians';
+                }
+            }
         } else {
             this.addSystemMessage(game, "Tie vote! No one eliminated.");
         }
@@ -516,6 +525,36 @@ class GameManager {
             p.hasVoted = false;
         });
         return this.startRound(game);
+    }
+
+    updatePlayerName(gameCode, playerId, newName) {
+        const game = this.games.get(gameCode);
+        if (!game) return { error: 'Game not found' };
+
+        const player = game.players.find(p => p.id === playerId);
+        if (!player) return { error: 'Player not found' };
+
+        // Validate name
+        if (!newName || newName.trim().length === 0) {
+            return { error: 'Name cannot be empty' };
+        }
+
+        newName = newName.trim().substring(0, 15); // Enforce max length
+
+        // Check for duplicates (excluding current player)
+        let finalName = newName;
+        let counter = 1;
+        while (game.players.some(p => p.id !== playerId && p.name === finalName)) {
+            finalName = `${newName} (${counter})`;
+            counter++;
+        }
+
+        const oldName = player.name;
+        player.name = finalName;
+
+        this.addSystemMessage(game, `${oldName} changed their name to ${finalName}`);
+
+        return { game, oldName, newName: finalName };
     }
 
     addSystemMessage(game, text) {

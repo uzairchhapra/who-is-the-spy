@@ -22,7 +22,7 @@
             <!-- Header -->
             <header class="game-header">
                 <div style="display: flex; align-items: center; gap: 16px;">
-                    <span id="headerCode" class="game-code-badge">...</span>
+                    <button id="headerCode" class="game-code-badge" style="cursor: pointer; transition: opacity 0.2s;" title="Click to copy game link">...</button>
                     <div>
                         <h1 style="font-size: 14px; font-weight: 700; color: var(--text-input); line-height: 1;">Who's
                             the Spy</h1>
@@ -31,7 +31,13 @@
                             Round <span id="roundCounter" style="color: var(--text-input);">1</span> •
                             <span id="phaseIndicator"
                                 style="color: var(--secondary); text-transform: uppercase;">WAITING</span> •
-                            <span id="playerNameHeader" style="color: var(--primary); text-transform: none;">...</span>
+                            <span style="display: inline-block; background: rgba(187, 134, 252, 0.15); padding: 3px 8px; border-radius: 4px; margin-left: 2px;">
+                                <span id="playerNameHeader" style="color: var(--primary); text-transform: none; font-size: 14px; font-weight: 700;">...</span>
+                                <svg id="editNameIcon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="cursor: pointer; margin-left: 4px; opacity: 0.7; transition: opacity 0.2s; vertical-align: middle;" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.7'">
+                                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                                </svg>
+                            </span>
                         </p>
                     </div>
                 </div>
@@ -125,7 +131,26 @@
                 return;
             }
 
-            document.getElementById('headerCode').textContent = code;
+            const headerCodeBtn = document.getElementById('headerCode');
+            headerCodeBtn.textContent = code;
+
+            // Copy game link on click
+            const baseUrl = window.location.origin;
+            const gameLink = `${baseUrl}/?code=${code}`;
+
+            headerCodeBtn.addEventListener('click', () => {
+                navigator.clipboard.writeText(gameLink).then(() => {
+                    const originalText = headerCodeBtn.textContent;
+                    headerCodeBtn.textContent = '✓ Copied!';
+                    headerCodeBtn.style.opacity = '0.7';
+                    setTimeout(() => {
+                        headerCodeBtn.textContent = originalText;
+                        headerCodeBtn.style.opacity = '1';
+                    }, 2000);
+                }).catch(err => {
+                    console.error('Failed to copy:', err);
+                });
+            });
 
             socket.emit('join-game', {
                 gameCode: code,
@@ -139,6 +164,7 @@
             const wordCard = document.getElementById('wordCard');
             const roundCounter = document.getElementById('roundCounter');
             const playerNameHeader = document.getElementById('playerNameHeader');
+            const editNameIcon = document.getElementById('editNameIcon');
 
             // UI
             const votingGrid = document.getElementById('votingGrid');
@@ -195,6 +221,15 @@
                 addChatMessage(msg);
             });
 
+            socket.on('player-name-updated', ({ playerId, newName }) => {
+                if (playerId === myId) {
+                    // Update local session storage
+                    const session = getSession();
+                    session.playerName = newName;
+                    saveSession(session.gameCode, session.playerId, newName);
+                }
+            });
+
             function updateMyIdentity(game) {
                 const me = game.players.find(p => p.id === myId);
                 const badge = document.getElementById('roleBadge');
@@ -233,7 +268,10 @@
             function renderUI(game) {
                 phaseIndicator.textContent = game.gamePhase;
                 roundCounter.textContent = game.currentRound;
-                playerNameHeader.textContent = session.playerName;
+
+                // Get name from gameState, not session (in case it was just updated)
+                const me = game.players.find(p => p.id === myId);
+                playerNameHeader.textContent = me ? me.name : session.playerName;
 
                 votingGrid.classList.add('hidden');
                 resultsUI.classList.add('hidden');
@@ -262,22 +300,29 @@
                 const me = game.players.find(p => p.id === myId);
                 const canVote = me && (me.status === 'active' || me.status === 'disconnected') && !me.hasVoted;
 
+                // Count votes for each player
+                const voteCounts = {};
+                Object.values(game.votes || {}).forEach(votedId => {
+                    voteCounts[votedId] = (voteCounts[votedId] || 0) + 1;
+                });
+
+                // Add vote cards for other players (not current player)
                 game.players.forEach(p => {
                     if (p.status !== 'active' && p.status !== 'disconnected') return;
+                    if (p.id === myId) return; // Skip current player
 
                     const btn = document.createElement('button');
-                    const isMe = p.id === myId;
                     const isSelected = selectedVoteId === p.id;
+                    const voteCount = voteCounts[p.id] || 0;
 
                     btn.className = `vote-card ${isSelected ? 'selected' : ''}`;
-                    btn.disabled = isMe || !canVote;
+                    btn.disabled = !canVote;
 
                     btn.onclick = (e) => {
                         e.preventDefault();
-                        if (canVote) {
+                        if (canVote && !me.hasVoted) {
                             selectedVoteId = p.id;
                             renderVotingUI(game);
-                            socket.emit('submit-vote', { gameCode: code, votedPlayerId: p.id });
                         }
                     };
 
@@ -286,9 +331,56 @@
                             ${p.name[0].toUpperCase()}
                          </div>
                          <span class="player-name" style="font-size: 12px; text-align: center; width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${p.name}</span>
+                         ${voteCount > 0 ? `<span style="position: absolute; top: 4px; right: 4px; background: var(--error); color: white; font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 10px;">${voteCount}</span>` : ''}
                     `;
                     votingGrid.appendChild(btn);
                 });
+
+                // Add "None" option
+                const noneBtn = document.createElement('button');
+                const noneSelected = selectedVoteId === 'none';
+                const noneVoteCount = voteCounts['none'] || 0;
+
+                noneBtn.className = `vote-card ${noneSelected ? 'selected' : ''}`;
+                noneBtn.disabled = !canVote;
+
+                noneBtn.onclick = (e) => {
+                    e.preventDefault();
+                    if (canVote && !me.hasVoted) {
+                        selectedVoteId = 'none';
+                        renderVotingUI(game);
+                    }
+                };
+
+                noneBtn.innerHTML = `
+                     <div class="avatar" style="margin-right: 0; width: 32px; height: 32px; font-size: 14px; background-color: ${noneSelected ? 'var(--error)' : 'var(--subtitle)'}">
+                        ✕
+                     </div>
+                     <span class="player-name" style="font-size: 12px; text-align: center; width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">None</span>
+                     ${noneVoteCount > 0 ? `<span style="position: absolute; top: 4px; right: 4px; background: var(--error); color: white; font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 10px;">${noneVoteCount}</span>` : ''}
+                `;
+                votingGrid.appendChild(noneBtn);
+
+                // Submit Vote button
+                if (canVote && !me.hasVoted) {
+                    const submitContainer = document.createElement('div');
+                    submitContainer.style.cssText = 'grid-column: 1 / -1; text-align: center; margin-top: 8px;';
+
+                    const submitBtn = document.createElement('button');
+                    submitBtn.className = 'btn btn-primary';
+                    submitBtn.textContent = 'Submit Vote';
+                    submitBtn.disabled = !selectedVoteId;
+                    submitBtn.style.cssText = 'padding: 12px 32px;';
+
+                    submitBtn.onclick = () => {
+                        if (selectedVoteId) {
+                            socket.emit('submit-vote', { gameCode: code, votedPlayerId: selectedVoteId });
+                        }
+                    };
+
+                    submitContainer.appendChild(submitBtn);
+                    votingGrid.appendChild(submitContainer);
+                }
 
                 if (me && me.hasVoted) {
                     votingGrid.style.pointerEvents = 'none';
@@ -516,6 +608,72 @@
 
             document.getElementById('newGameBtn').addEventListener('click', () => {
                 socket.emit('start-new-game', { gameCode: code });
+            });
+
+            let isEditingName = false;
+
+            editNameIcon.addEventListener('click', () => {
+                if (isEditingName) return;
+
+                const me = gameState ? gameState.players.find(p => p.id === myId) : null;
+                const currentName = me ? me.name : session.playerName;
+
+                isEditingName = true;
+
+                // Create input element
+                const input = document.createElement('input');
+                input.type = 'text';
+                input.value = currentName;
+                input.maxLength = 15;
+                input.style.cssText = `
+                    background: rgba(187, 134, 252, 0.1);
+                    border: 1px solid var(--primary);
+                    border-radius: 4px;
+                    color: var(--primary);
+                    padding: 2px 6px;
+                    font-size: 11px;
+                    font-weight: 600;
+                    width: 120px;
+                    outline: none;
+                    text-transform: none;
+                `;
+
+                // Replace text with input
+                const originalText = playerNameHeader.textContent;
+                playerNameHeader.textContent = '';
+                playerNameHeader.appendChild(input);
+                input.focus();
+                input.select();
+
+                const saveEdit = () => {
+                    const newName = input.value.trim();
+                    isEditingName = false;
+                    playerNameHeader.textContent = originalText;
+
+                    if (newName && newName !== currentName) {
+                        socket.emit('update-player-name', { gameCode: code, newName: newName });
+                    }
+                };
+
+                const cancelEdit = () => {
+                    isEditingName = false;
+                    playerNameHeader.textContent = originalText;
+                };
+
+                // Save on Enter, cancel on Escape
+                input.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        saveEdit();
+                    } else if (e.key === 'Escape') {
+                        cancelEdit();
+                    }
+                });
+
+                // Save on blur (click away)
+                input.addEventListener('blur', () => {
+                    setTimeout(saveEdit, 100);
+                });
             });
 
             document.getElementById('leaveBtn').addEventListener('click', () => {

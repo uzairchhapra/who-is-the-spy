@@ -60,3 +60,26 @@ function copyToClipboard(text) {
         }
     });
 }
+
+// Random Name Generator
+const adjectives = [
+    'Happy', 'Lucky', 'Swift', 'Brave', 'Clever', 'Mighty', 'Noble', 'Silent',
+    'Golden', 'Silver', 'Crystal', 'Mystic', 'Ancient', 'Cosmic', 'Electric',
+    'Blazing', 'Frozen', 'Thunder', 'Shadow', 'Radiant', 'Crimson', 'Azure',
+    'Emerald', 'Amber', 'Jade', 'Scarlet', 'Violet', 'Turquoise', 'Coral',
+    'Ruby', 'Diamond', 'Pearl', 'Sapphire', 'Topaz', 'Obsidian', 'Ivory'
+];
+
+const nouns = [
+    'Lion', 'Tiger', 'Eagle', 'Wolf', 'Bear', 'Dragon', 'Phoenix', 'Falcon',
+    'Panther', 'Hawk', 'Raven', 'Cobra', 'Shark', 'Whale', 'Dolphin',
+    'Fox', 'Owl', 'Jaguar', 'Leopard', 'Cheetah', 'Lynx', 'Puma', 'Otter',
+    'Penguin', 'Sparrow', 'Crow', 'Heron', 'Swan', 'Flamingo', 'Peacock',
+    'Butterfly', 'Dragonfly', 'Firefly', 'Beetle', 'Mantis', 'Scorpion'
+];
+
+function generateRandomName() {
+    const adjective = adjectives[Math.floor(Math.random() * adjectives.length)];
+    const noun = nouns[Math.floor(Math.random() * nouns.length)];
+    return `${adjective}${noun}`;
+}

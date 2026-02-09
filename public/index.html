@@ -54,6 +54,13 @@
                 </div>
                 <button id="joinBtn" class="btn btn-secondary">Join Game</button>
             </div>
+
+            <!-- Version Footer -->
+            <div style="text-align: center; margin-top: 24px; padding-top: 16px; border-top: 1px solid rgba(255,255,255,0.1);">
+                <p style="color: #666; font-size: 12px; font-family: 'Inter', sans-serif;">
+                    Version <span id="app-version">...</span>
+                </p>
+            </div>
         </div>
     </div>
 
@@ -63,6 +70,29 @@
             const joinBtn = document.getElementById('joinBtn');
             const session = getSession();
 
+            // Fetch and display version
+            fetch('/version')
+                .then(res => res.json())
+                .then(data => {
+                    document.getElementById('app-version').textContent = data.version;
+                })
+                .catch(() => {
+                    document.getElementById('app-version').textContent = 'unknown';
+                });
+
+            // Set up socket event listeners FIRST (before auto-join)
+            socket.on('game-created', ({ gameCode, playerId }) => {
+                saveSession(gameCode, playerId, document.getElementById('createName').value);
+                window.location.href = `/lobby?code=${gameCode}`;
+            });
+
+            socket.on('game-joined', ({ gameCode, playerId }) => {
+                const playerName = document.getElementById('joinName').value || getQueryParam('name');
+                saveSession(gameCode, playerId, playerName);
+                window.location.href = `/lobby?code=${gameCode}`;
+            });
+
+            // Set up button event listeners
             createBtn.addEventListener('click', () => {
                 const name = document.getElementById('createName').value.trim();
                 if (!name) return alert('Please enter your name');
@@ -76,15 +106,27 @@
                 socket.emit('join-game', { gameCode: code, playerName: name, previousPlayerId: session.playerId });
             });
 
-            socket.on('game-created', ({ gameCode, playerId }) => {
-                saveSession(gameCode, playerId, document.getElementById('createName').value);
-                window.location.href = `/lobby?code=${gameCode}`;
-            });
+            // Check for URL parameters (shareable link) - do this AFTER setting up listeners
+            const urlCode = getQueryParam('code');
+            let urlName = getQueryParam('name');
 
-            socket.on('game-joined', ({ gameCode, playerId }) => {
-                saveSession(gameCode, playerId, document.getElementById('joinName').value);
-                window.location.href = `/lobby?code=${gameCode}`;
-            });
+            if (urlCode) {
+                // If no name in URL, generate a random one
+                if (!urlName) {
+                    urlName = generateRandomName();
+                }
+
+                // Auto-join with URL parameters
+                document.getElementById('joinCode').value = urlCode;
+                document.getElementById('joinName').value = urlName;
+
+                // Automatically trigger join
+                socket.emit('join-game', {
+                    gameCode: urlCode.toUpperCase(),
+                    playerName: urlName,
+                    previousPlayerId: session.playerId
+                });
+            }
         });
     </script>
 </body>
