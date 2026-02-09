@@ -165,7 +165,12 @@
             let selectedVoteId = null;
 
             socket.on('game-state-update', (game) => {
-                const wasCleared = gameState && game.chatHistory.length < gameState.chatHistory.length;
+                console.log('Game Update Received:', game);
+                window.debugState = game;
+                const wasCleared = gameState && (game.chatHistory.length < gameState.chatHistory.length);
+                if (gameState && (game.gamePhase !== gameState.gamePhase || game.currentRound !== gameState.currentRound)) {
+                    selectedVoteId = null;
+                }
                 gameState = game;
                 updateMyIdentity(game);
                 renderUI(game);
@@ -175,6 +180,7 @@
             });
 
             socket.on('game-started', (game) => {
+                selectedVoteId = null;
                 gameState = game;
                 updateMyIdentity(game);
                 renderUI(game);
@@ -262,12 +268,16 @@
             function renderVotingUI(game) {
                 votingGrid.classList.remove('hidden');
                 votingGrid.innerHTML = '';
+                // Reset styles that might be stale from previous round
+                votingGrid.style.pointerEvents = '';
+                votingGrid.style.opacity = '';
+                document.getElementById('voteActionArea').classList.add('hidden');
 
                 const me = game.players.find(p => p.id === myId);
-                const canVote = me && me.status === 'active' && !me.hasVoted;
+                const canVote = me && (me.status === 'active' || me.status === 'disconnected') && !me.hasVoted;
 
                 game.players.forEach(p => {
-                    if (p.status !== 'active') return;
+                    if (p.status !== 'active' && p.status !== 'disconnected') return;
 
                     const btn = document.createElement('button');
                     const isMe = p.id === myId;
@@ -389,14 +399,16 @@
 
                     div.className = `status-pill ${p.status === 'active' ? 'active' : ''} ${isTurn ? 'current' : ''}`;
 
-                    let statusColor = 'var(--secondary)';
+                    let statusColor = 'var(--primary)';
                     if (p.status === 'disconnected') statusColor = 'rgba(255,255,255,0.2)';
-                    else if (p.status === 'eliminated') statusColor = 'var(--error)';
+                    else if (p.status === 'eliminated') statusColor = '#727272';
                     else if (p.status === 'waiting') statusColor = '#F59E0B';
+                    else if (p.hasVoted && game.gamePhase === 'voting') statusColor = 'var(--error)';
+                    else if (p.hasDescribed && game.gamePhase === 'description') statusColor = 'var(--secondary)';
 
                     div.innerHTML = `
                         <span class="dot" style="background-color: ${statusColor}"></span>
-                        <span style="font-weight: 600;">${p.name}</span>
+                        <span style="font-weight: 600; font-size: 11px;">${p.name}</span>
                     `;
                     bar.appendChild(div);
                 });
@@ -404,6 +416,8 @@
 
             function updateInputState(game) {
                 const me = game.players.find(p => p.id === myId);
+                if (!me) return; // Player not in game (spectator or error state)
+
                 const turnId = game.turnOrder[game.currentTurnIndex];
                 const isMyTurn = (game.gamePhase === 'description' && turnId === myId && !me.hasDescribed);
 

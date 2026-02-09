@@ -202,7 +202,7 @@ class GameManager {
                         // This solves the spam. The delayed removal is acceptable MVP trade-off.
                     }
                 }
-            }, 4000);
+            }, 60000);
 
         } else {
             // In game, mark disconnected but delay log to allow for refresh
@@ -231,7 +231,7 @@ class GameManager {
                         }
                         // 2. Check if voting can finish early
                         if (currentGame.gamePhase === 'voting') {
-                            const activeCount = currentGame.players.filter(pl => pl.status === 'active').length;
+                            const activeCount = currentGame.players.filter(pl => pl.status === 'active' || pl.status === 'disconnected').length;
                             if (Object.keys(currentGame.votes).length >= activeCount && activeCount > 0) {
                                 this.processVotingResults(currentGame);
                                 shouldUpdate = true;
@@ -251,8 +251,9 @@ class GameManager {
                             this.addSystemMessage(currentGame, `Imposter disconnected! Civilians win!`);
                             shouldUpdate = true;
                         } else if (p.role === 'civilian') {
-                            const activeCivs = currentGame.players.filter(pl => pl.role === 'civilian' && pl.status === 'active');
-                            if (activeCivs.length <= 1) {
+                            // Check civilians who are active OR just DISCONNECTED (waiting to return)
+                            const potentialCivs = currentGame.players.filter(pl => pl.role === 'civilian' && (pl.status === 'active' || pl.status === 'disconnected'));
+                            if (potentialCivs.length <= 1) {
                                 currentGame.gamePhase = 'ended';
                                 currentGame.status = 'ended';
                                 const imp = currentGame.players.find(pl => pl.role === 'imposter');
@@ -272,7 +273,7 @@ class GameManager {
                         this.updateCallback(gameCode, currentGame);
                     }
                 }
-            }, 4000);
+            }, 60000);
         }
 
         // Check if empty
@@ -285,7 +286,7 @@ class GameManager {
             const timer = setTimeout(() => {
                 this.games.delete(gameCode);
                 this.deletionTimers.delete(gameCode);
-            }, 5000);
+            }, 300000); // 5 minutes
 
             this.deletionTimers.set(gameCode, timer);
         }
@@ -318,7 +319,7 @@ class GameManager {
         if (game.currentRound === 1) {
             const pair = getRandomPair();
             game.wordPair = pair;
-            const activePlayers = game.players.filter(p => p.status === 'active' || p.status === 'waiting');
+            const activePlayers = game.players.filter(p => p.status === 'active' || p.status === 'waiting' || p.status === 'disconnected');
             // Activate everyone
             activePlayers.forEach(p => p.status = 'active');
 
@@ -336,21 +337,19 @@ class GameManager {
                 p.hasVoted = false;
                 p.points = p.points || 0;
             });
-        } else {
-            // Reset turn flags
-            game.players.forEach(p => {
-                if (p.status === 'active') {
-                    p.hasDescribed = false;
-                    p.hasVoted = false;
-                }
-            });
         }
+
+        // Reset flags for EVERYONE (including eliminated) to prevent stale state
+        game.players.forEach(p => {
+            p.hasDescribed = false;
+            p.hasVoted = false;
+        });
 
         game.votes = {};
         game.lastRoundResult = null;
 
-        // Turn Order
-        const capable = game.players.filter(p => p.status === 'active');
+        // Turn Order - Include anyone who is active or momentarily disconnected
+        const capable = game.players.filter(p => p.status === 'active' || p.status === 'disconnected');
         for (let i = capable.length - 1; i > 0; i--) {
             const j = Math.floor(Math.random() * (i + 1));
             [capable[i], capable[j]] = [capable[j], capable[i]];
@@ -359,6 +358,7 @@ class GameManager {
         game.currentTurnIndex = -1;
         this.advanceTurn(game);
 
+        console.log(`[ROUND] Resetting Round ${game.currentRound}. Players:`, game.players.map(p => `${p.name}(${p.status}, voted:${p.hasVoted})`));
         this.addSystemMessage(game, `Round ${game.currentRound} started!`);
         return { game, event: 'round-started' };
     }
@@ -366,19 +366,26 @@ class GameManager {
     submitDescription(gameCode, playerId, description) {
         const game = this.games.get(gameCode);
         if (!game) return { error: 'Game not found' };
+
+        const player = game.players.find(p => p.id === playerId);
+        if (!player) return { error: 'Player not found' };
+
+        // Auto-reconnect if they were disconnected
+        if (player.status === 'disconnected') player.status = 'active';
+
         if (game.gamePhase !== 'description') return { error: 'Not description phase' };
 
         const turnPlayerId = game.turnOrder[game.currentTurnIndex];
         if (turnPlayerId !== playerId) return { error: 'Not your turn' };
 
-        const player = game.players.find(p => p.id === playerId);
-        player.hasDescribed = true;
+        if (player.hasDescribed) return { error: 'Already described' };
 
+        player.hasDescribed = true;
         this.addChatMessage(game, player.name, description, 'description');
+        console.log(`[DESC] ${player.name} described. Advancing turn.`);
 
         // Advance
         this.advanceTurn(game);
-
         return { game, event: 'turn-update' };
     }
 
@@ -388,13 +395,14 @@ class GameManager {
         while (game.currentTurnIndex < game.turnOrder.length) {
             const nextPlayerId = game.turnOrder[game.currentTurnIndex];
             const p = game.players.find(pl => pl.id === nextPlayerId);
-            if (p && p.status === 'active') {
+            if (p && (p.status === 'active' || p.status === 'disconnected')) {
                 return { phase: 'description' };
             }
             game.currentTurnIndex++;
         }
 
         game.gamePhase = 'voting';
+        game.currentTurnIndex = -1; // Clear turn indicator during voting
         this.addSystemMessage(game, 'Voting phase started!');
         return { phase: 'voting' };
     }
@@ -402,15 +410,26 @@ class GameManager {
     submitVote(gameCode, voterId, candidateId) {
         const game = this.games.get(gameCode);
         if (!game) return { error: 'Game not found' };
+        if (game.gamePhase !== 'voting') return { error: 'Not in voting phase' };
 
         const voter = game.players.find(p => p.id === voterId);
-        if (!voter || voter.status !== 'active') return { error: 'Cannot vote' };
+        if (!voter) return { error: 'Player not found' };
+
+        // Auto-reconnect
+        if (voter.status === 'disconnected') voter.status = 'active';
+
+        if (voter.status !== 'active') return { error: 'Cannot vote' };
+
+        if (voter.hasVoted) return { error: 'Already voted' };
 
         game.votes[voterId] = candidateId;
         voter.hasVoted = true;
+        console.log(`[VOTE] ${voter.name} voted for ${candidateId}. Phase: ${game.gamePhase}`);
 
-        const activeCount = game.players.filter(p => p.status === 'active').length;
+        // Include disconnected players in the count since they are still "in" the game
+        const activeCount = game.players.filter(p => p.status === 'active' || p.status === 'disconnected').length;
         if (Object.keys(game.votes).length >= activeCount) {
+            console.log(`[VOTE] All votes in (${activeCount}). Processing results...`);
             return this.processVotingResults(game);
         }
         return { game, event: 'vote-update' };
@@ -443,13 +462,15 @@ class GameManager {
         }
 
         const imposter = game.players.find(p => p.role === 'imposter');
-        const activeCivs = game.players.filter(p => p.role === 'civilian' && p.status === 'active');
 
         if (!winner) {
-            if (activeCivs.length <= 1) winner = 'imposter';
+            const potentialCivs = game.players.filter(p => p.role === 'civilian' && (p.status === 'active' || p.status === 'disconnected'));
+            if (potentialCivs.length <= 1) winner = 'imposter';
             else {
                 game.players.forEach(p => {
-                    if (p.status === 'active') p.points += p.role === 'imposter' ? 15 : 10;
+                    if (p.status === 'active' || p.status === 'disconnected') {
+                        p.points += p.role === 'imposter' ? 15 : 10;
+                    }
                 });
             }
         }
