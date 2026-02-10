@@ -16,17 +16,24 @@ const io = socketIo(server, {
     pingTimeout: 60000,
     pingInterval: 25000,
     transports: ['websocket'],
-    allowEIO3: true,
-    path: '/socket.io',
-    upgradeTimeout: 30000,
-    allowUpgrades: true
+    path: '/socket.io'
 });
 
 const gameManager = new GameManager((gameCode, game) => {
     io.to(gameCode).emit('game-state-update', game);
 });
 
-app.use(express.static(path.join(__dirname, 'public')));
+// Serve static files with no-cache headers to prevent stale files
+app.use(express.static(path.join(__dirname, 'public'), {
+    setHeaders: (res, filepath) => {
+        // Cache bust for HTML, JS, and CSS files
+        if (filepath.endsWith('.html') || filepath.endsWith('.js') || filepath.endsWith('.css')) {
+            res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+            res.setHeader('Pragma', 'no-cache');
+            res.setHeader('Expires', '0');
+        }
+    }
+}));
 app.use(express.json());
 
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public/index.html')));
