@@ -1,4 +1,9 @@
-const socket = io();
+const socket = io({
+    transports: ['websocket', 'polling'],
+    reconnectionAttempts: 5,
+    reconnectionDelay: 1000,
+    timeout: 20000
+});
 
 // Shared state
 let currentUser = null;
