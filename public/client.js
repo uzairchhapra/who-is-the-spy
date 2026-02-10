@@ -7,6 +7,10 @@ const socket = io({
     path: '/socket.io'
 });
 
+// Debug logging
+console.log('[SOCKET.IO] Configured transports:', socket.io.opts.transports);
+console.log('[SOCKET.IO] Client version:', io.version);
+
 // Shared state
 let currentUser = null;
 let currentGameCode = null;
@@ -37,13 +41,19 @@ function clearSession() {
 
 // Common Socket Listeners
 socket.on('connect', () => {
-    console.log('Connected to server', socket.id);
+    console.log('[SOCKET.IO] Connected to server. Socket ID:', socket.id);
+    console.log('[SOCKET.IO] Active transport:', socket.io.engine.transport.name);
     // Optional: Attempt reconnect if session exists
     const session = getSession();
     if (session.gameCode && window.location.pathname.includes('game.html')) {
         // Re-join logic could go here if we want robust reconnection
         // socket.emit('join-game', { gameCode: session.gameCode, playerName: session.playerName });
     }
+});
+
+socket.on('connect_error', (error) => {
+    console.error('[SOCKET.IO] Connection error:', error.message);
+    console.error('[SOCKET.IO] Error details:', error);
 });
 
 socket.on('error', (data) => {
