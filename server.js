@@ -6,11 +6,17 @@ const path = require('path');
 const { version } = require('./package.json');
 
 const app = express();
+
+// Trust proxy for production deployment (required when behind reverse proxy)
+app.set('trust proxy', 1);
+
 const server = http.createServer(app);
 const io = socketIo(server, {
     cors: { origin: "*", methods: ["GET", "POST"] },
     pingTimeout: 60000,
-    pingInterval: 25000
+    pingInterval: 25000,
+    transports: ['websocket', 'polling'],
+    allowEIO3: true
 });
 
 const gameManager = new GameManager((gameCode, game) => {
