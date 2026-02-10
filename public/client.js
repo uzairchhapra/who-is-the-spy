@@ -1,8 +1,10 @@
 const socket = io({
-    transports: ['websocket', 'polling'],
-    reconnectionAttempts: 5,
+    transports: ['websocket'],
+    upgrade: false,
+    reconnectionAttempts: 10,
     reconnectionDelay: 1000,
-    timeout: 20000
+    timeout: 30000,
+    path: '/socket.io'
 });
 
 // Shared state

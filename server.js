@@ -15,8 +15,11 @@ const io = socketIo(server, {
     cors: { origin: "*", methods: ["GET", "POST"] },
     pingTimeout: 60000,
     pingInterval: 25000,
-    transports: ['websocket', 'polling'],
-    allowEIO3: true
+    transports: ['websocket'],
+    allowEIO3: true,
+    path: '/socket.io',
+    upgradeTimeout: 30000,
+    allowUpgrades: true
 });
 
 const gameManager = new GameManager((gameCode, game) => {
