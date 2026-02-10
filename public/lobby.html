@@ -70,7 +70,8 @@
 
     <script>
         document.addEventListener('DOMContentLoaded', () => {
-            const code = getQueryParam('code');
+            let code = getQueryParam('code');
+            if (code) code = code.toUpperCase(); // Normalize to uppercase
             const session = getSession();
 
             if (!code || !session.playerId) {
