@@ -120,12 +120,29 @@
                 document.getElementById('joinCode').value = urlCode;
                 document.getElementById('joinName').value = urlName;
 
-                // Automatically trigger join
-                socket.emit('join-game', {
-                    gameCode: urlCode.toUpperCase(),
-                    playerName: urlName,
-                    previousPlayerId: session.playerId
-                });
+                // Wait for socket connection before auto-joining
+                const attemptAutoJoin = () => {
+                    if (socket.connected) {
+                        console.log('[AUTO-JOIN] Socket connected, attempting to join game:', urlCode);
+                        socket.emit('join-game', {
+                            gameCode: urlCode.toUpperCase(),
+                            playerName: urlName,
+                            previousPlayerId: session.playerId
+                        });
+                    } else {
+                        console.log('[AUTO-JOIN] Waiting for socket connection...');
+                        socket.once('connect', () => {
+                            console.log('[AUTO-JOIN] Socket connected, attempting to join game:', urlCode);
+                            socket.emit('join-game', {
+                                gameCode: urlCode.toUpperCase(),
+                                playerName: urlName,
+                                previousPlayerId: session.playerId
+                            });
+                        });
+                    }
+                };
+
+                attemptAutoJoin();
             }
         });
     </script>
