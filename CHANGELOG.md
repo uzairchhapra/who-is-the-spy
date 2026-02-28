@@ -1,5 +1,13 @@
 # Changelog
 
+## [2.1.0](https://github.com/uzairchhapra/who-is-the-spy/compare/whos-the-spy-v2.0.0...whos-the-spy-v2.1.0) (2026-02-28)
+
+
+### Features
+
+* collapsible voting UI and layout improvements ([8263d20](https://github.com/uzairchhapra/who-is-the-spy/commit/8263d20af495aadb2951c0cccab5677eb45e565b))
+* implement collapsible voting UI and add AGENTS.md ([717a021](https://github.com/uzairchhapra/who-is-the-spy/commit/717a02174d532313660779370c63e3f9b06d8d88))
+
 ## [2.0.0](https://github.com/uzairchhapra/who-is-the-spy/compare/whos-the-spy-v1.1.3...whos-the-spy-v2.0.0) (2026-02-28)
 
 
