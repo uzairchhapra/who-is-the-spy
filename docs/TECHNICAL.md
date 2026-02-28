@@ -6,15 +6,16 @@ This document provides a detailed technical overview of the "Who's the Spy" game
 
 ```
 imposter-word/
-├── server.js           # Express + Socket.io server entry point
-├── game-manager.js     # Core game logic and state management
-├── word-pairs.js       # Word pair database for game rounds
+├── src/
+│   ├── server.js       # Express + Socket.io server entry point
+│   ├── game-manager.js # Core game logic and state management
+│   └── word-pairs.js   # Word pair database for game rounds
 ├── public/
 │   ├── index.html      # Landing page (Create/Join game)
+│   ├── lobby.html      # Lobby waiting room
 │   ├── game.html       # Main game interface
 │   ├── client.js       # Shared client utilities and session management
 │   └── styles.css      # Design system and component styles
-├── Dockerfile          # Container configuration
 └── package.json        # Dependencies and scripts
 ```
 

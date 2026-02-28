@@ -2,20 +2,22 @@
   "name": "whos-the-spy",
   "version": "1.1.3",
   "description": "Real-time multiplayer social deduction web game",
-  "main": "server.js",
+  "main": "src/server.js",
   "scripts": {
-    "start": "node server.js",
-    "dev": "node server.js",
-    "version:patch": "npm version patch --no-git-tag-version",
-    "version:minor": "npm version minor --no-git-tag-version",
-    "version:major": "npm version major --no-git-tag-version"
+    "start": "node src/server.js",
+    "dev": "node src/server.js",
+    "test": "node --test --test-force-exit tests/game-manager.test.js",
+    "simulate": "node tests/simulate-game.js"
   },
   "dependencies": {
+    "cors": "^2.8.5",
     "express": "^4.18.2",
-    "socket.io": "^4.7.2",
-    "cors": "^2.8.5"
+    "socket.io": "^4.7.2"
   },
   "engines": {
-    "node": ">=18.0.0"
+    "node": ">=24.0.0"
+  },
+  "devDependencies": {
+    "socket.io-client": "^4.8.3"
   }
 }

@@ -43,11 +43,17 @@ function clearSession() {
 socket.on('connect', () => {
     console.log('[SOCKET.IO] Connected to server. Socket ID:', socket.id);
     console.log('[SOCKET.IO] Active transport:', socket.io.engine.transport.name);
-    // Optional: Attempt reconnect if session exists
+    // Auto-rejoin when returning to an active session (e.g. mobile browser resuming after
+    // switching apps to share the invite link). The socket gets a new ID on reconnect so the
+    // server loses the session mapping — re-emitting join-game restores it.
     const session = getSession();
-    if (session.gameCode && window.location.pathname.includes('game.html')) {
-        // Re-join logic could go here if we want robust reconnection
-        // socket.emit('join-game', { gameCode: session.gameCode, playerName: session.playerName });
+    const path = window.location.pathname;
+    if (session.gameCode && session.playerId && (path === '/lobby' || path === '/game')) {
+        socket.emit('join-game', {
+            gameCode: session.gameCode,
+            playerName: session.playerName,
+            previousPlayerId: session.playerId
+        });
     }
 });
 

@@ -3,7 +3,7 @@ const http = require('http');
 const socketIo = require('socket.io');
 const GameManager = require('./game-manager');
 const path = require('path');
-const { version } = require('./package.json');
+const { version } = require('../package.json');
 
 const app = express();
 
@@ -24,7 +24,7 @@ const gameManager = new GameManager((gameCode, game) => {
 });
 
 // Serve static files with no-cache headers to prevent stale files
-app.use(express.static(path.join(__dirname, 'public'), {
+app.use(express.static(path.join(__dirname, '../public'), {
     setHeaders: (res, filepath) => {
         // Cache bust for HTML, JS, and CSS files
         if (filepath.endsWith('.html') || filepath.endsWith('.js') || filepath.endsWith('.css')) {
@@ -36,15 +36,13 @@ app.use(express.static(path.join(__dirname, 'public'), {
 }));
 app.use(express.json());
 
-app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public/index.html')));
-app.get('/lobby', (req, res) => res.sendFile(path.join(__dirname, 'public/lobby.html')));
-app.get('/game', (req, res) => res.sendFile(path.join(__dirname, 'public/game.html')));
+app.get('/', (req, res) => res.sendFile(path.join(__dirname, '../public/index.html')));
+app.get('/lobby', (req, res) => res.sendFile(path.join(__dirname, '../public/lobby.html')));
+app.get('/game', (req, res) => res.sendFile(path.join(__dirname, '../public/game.html')));
 app.get('/health', (req, res) => res.sendStatus(200));
 app.get('/version', (req, res) => res.json({ version }));
 
 io.on('connection', (socket) => {
-    // console.log('New connection:', socket.id); // Disabled log spam
-
     socket.on('create-game', ({ playerName }) => {
         try {
             const { gameCode, playerId, game } = gameManager.createGame(socket.id, playerName);
