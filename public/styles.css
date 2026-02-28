@@ -478,23 +478,32 @@ body {
 
 .status-bar {
   display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  padding: 12px 24px;
+  flex-wrap: nowrap;
+  gap: 6px;
+  padding: 8px 24px;
   background-color: var(--surface);
   border-bottom: 1px solid var(--divider);
   flex-shrink: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  justify-content: safe center;
+}
+
+.status-bar::-webkit-scrollbar {
+  display: none;
 }
 
 .status-pill {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 10px 20px;
+  gap: 6px;
+  padding: 5px 12px;
   background-color: var(--input-bg);
   border: 1px solid var(--input-border);
   border-radius: 100px;
-  font-size: 14px;
+  font-size: 11px;
   color: var(--subtitle);
   white-space: nowrap;
   flex-shrink: 0;
@@ -517,31 +526,87 @@ body {
   border-radius: 50%;
 }
 
-.voting-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 12px;
-  padding: 16px 24px;
+.voting-toggle-btn {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  width: 100%;
+  background: none;
+  border: none;
+  padding: 6px 20px 4px;
+  cursor: pointer;
+  color: var(--subtitle);
+  transition: color 0.15s ease;
 }
 
-@media (min-width: 480px) {
-  .voting-grid {
-    grid-template-columns: repeat(3, 1fr);
+.voting-toggle-btn:hover {
+  color: var(--text-input);
+}
+
+#votingCollapsible {
+  overflow: hidden;
+  max-height: 200px;
+  opacity: 1;
+  transition: max-height 0.28s ease, opacity 0.22s ease;
+}
+
+#votingCollapsible.collapsed {
+  max-height: 0;
+  opacity: 0;
+}
+
+#votingSection {
+  animation: fadeSlideDown 0.22s ease;
+}
+
+@keyframes fadeSlideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
   }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.voting-grid {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  gap: 10px;
+  padding: 10px 24px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  flex-shrink: 0;
+  align-items: stretch;
+  justify-content: safe center;
+}
+
+/* Hide horizontal scrollbar on webkit while still scrollable */
+.voting-grid::-webkit-scrollbar {
+  height: 4px;
 }
 
 .vote-card {
   background-color: var(--input-bg);
   border: 1px solid var(--input-border);
   border-radius: 8px;
-  padding: 12px;
+  padding: 8px 10px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   cursor: pointer;
   transition: all 200ms ease;
   position: relative;
+  flex-shrink: 0;
+  width: 80px;
+  min-height: 72px;
+  justify-content: center;
 }
 
 .vote-card:hover:not(:disabled) {

@@ -9,7 +9,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap"
         rel="stylesheet">
-    <link rel="stylesheet" href="styles.css?v=1.1.3">
+    <link rel="stylesheet" href="styles.css?v=1.1.4">
     <script src="/socket.io/socket.io.js?v=1.1.3"></script>
     <script src="client.js?v=1.1.3" defer></script>
 </head>
@@ -22,7 +22,8 @@
             <!-- Header -->
             <header class="game-header">
                 <div style="display: flex; align-items: center; gap: 16px;">
-                    <button id="headerCode" class="game-code-badge" style="cursor: pointer; transition: opacity 0.2s;" title="Click to copy game link">...</button>
+                    <button id="headerCode" class="game-code-badge" style="cursor: pointer; transition: opacity 0.2s;"
+                        title="Click to copy game link">...</button>
                     <div>
                         <h1 style="font-size: 14px; font-weight: 700; color: var(--text-input); line-height: 1;">Who's
                             the Spy</h1>
@@ -31,9 +32,15 @@
                             Round <span id="roundCounter" style="color: var(--text-input);">1</span> •
                             <span id="phaseIndicator"
                                 style="color: var(--secondary); text-transform: uppercase;">WAITING</span> •
-                            <span style="display: inline-block; background: rgba(187, 134, 252, 0.15); padding: 3px 8px; border-radius: 4px; margin-left: 2px;">
-                                <span id="playerNameHeader" style="color: var(--primary); text-transform: none; font-size: 14px; font-weight: 700;">...</span>
-                                <svg id="editNameIcon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="cursor: pointer; margin-left: 4px; opacity: 0.7; transition: opacity 0.2s; vertical-align: middle;" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.7'">
+                            <span
+                                style="display: inline-block; background: rgba(187, 134, 252, 0.15); padding: 3px 8px; border-radius: 4px; margin-left: 2px;">
+                                <span id="playerNameHeader"
+                                    style="color: var(--primary); text-transform: none; font-size: 14px; font-weight: 700;">...</span>
+                                <svg id="editNameIcon" width="12" height="12" viewBox="0 0 24 24" fill="none"
+                                    stroke="var(--primary)" stroke-width="2.5" stroke-linecap="round"
+                                    stroke-linejoin="round"
+                                    style="cursor: pointer; margin-left: 4px; opacity: 0.7; transition: opacity 0.2s; vertical-align: middle;"
+                                    onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.7'">
                                     <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
                                     <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
                                 </svg>
@@ -65,11 +72,24 @@
             <!-- Game Management UI (Description/Voting/Results) -->
             <div id="activePhaseUI">
 
-                <!-- Voting Grid -->
-                <div id="votingGrid" class="voting-grid hidden"></div>
-                <div id="voteActionArea" class="hidden" style="text-align: center; padding: 8px;">
-                    <p style="font-size: 13px; font-weight: 600; color: var(--secondary);">Vote successfully submitted!
-                    </p>
+                <!-- Voting Section (collapsible) -->
+                <div id="votingSection" class="hidden">
+                    <button id="votingToggle" class="voting-toggle-btn">
+                        <svg id="votingChevron" width="14" height="14" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"
+                            style="transition: transform 0.25s ease; flex-shrink: 0;">
+                            <polyline points="18 15 12 9 6 15"></polyline>
+                        </svg>
+                    </button>
+                    <div id="votingCollapsible">
+                        <div id="votingGrid" class="voting-grid"></div>
+                        <div id="voteSubmitContainer" class="hidden" style="padding: 0 24px 8px;"></div>
+                        <div id="voteActionArea" class="hidden" style="text-align: center; padding: 8px;">
+                            <p style="font-size: 13px; font-weight: 600; color: var(--secondary);">Vote successfully
+                                submitted!
+                            </p>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- Results UI -->
@@ -167,10 +187,22 @@
             const editNameIcon = document.getElementById('editNameIcon');
 
             // UI
+            const votingSection = document.getElementById('votingSection');
             const votingGrid = document.getElementById('votingGrid');
+            const votingToggle = document.getElementById('votingToggle');
+            const votingChevron = document.getElementById('votingChevron');
+            const votingCollapsible = document.getElementById('votingCollapsible');
             const resultsUI = document.getElementById('resultsUI');
             const activePhaseUI = document.getElementById('activePhaseUI');
             const gameInputFooter = document.getElementById('gameInputFooter');
+
+            let votingCollapsed = false;
+
+            votingToggle.addEventListener('click', () => {
+                votingCollapsed = !votingCollapsed;
+                votingCollapsible.classList.toggle('collapsed', votingCollapsed);
+                votingChevron.style.transform = votingCollapsed ? 'rotate(180deg)' : 'rotate(0deg)';
+            });
 
             // Input
             const unifiedForm = document.getElementById('unifiedForm');
@@ -276,7 +308,7 @@
                 const me = game.players.find(p => p.id === myId);
                 playerNameHeader.textContent = me ? me.name : session.playerName;
 
-                votingGrid.classList.add('hidden');
+                votingSection.classList.add('hidden');
                 resultsUI.classList.add('hidden');
                 document.getElementById('voteActionArea').classList.add('hidden');
 
@@ -293,12 +325,16 @@
             }
 
             function renderVotingUI(game) {
-                votingGrid.classList.remove('hidden');
+                votingSection.classList.remove('hidden');
                 votingGrid.innerHTML = '';
                 // Reset styles that might be stale from previous round
                 votingGrid.style.pointerEvents = '';
                 votingGrid.style.opacity = '';
                 document.getElementById('voteActionArea').classList.add('hidden');
+
+                const voteSubmitContainer = document.getElementById('voteSubmitContainer');
+                voteSubmitContainer.innerHTML = '';
+                voteSubmitContainer.classList.add('hidden');
 
                 const me = game.players.find(p => p.id === myId);
                 const canVote = me && (me.status === 'active' || me.status === 'disconnected') && !me.hasVoted;
@@ -330,11 +366,11 @@
                     };
 
                     btn.innerHTML = `
-                         <div class="avatar ${isSelected ? 'is-me' : ''}" style="margin-right: 0; width: 32px; height: 32px; font-size: 14px; background-color: ${isSelected ? 'var(--error)' : 'var(--subtitle)'}">
+                         <div class="avatar ${isSelected ? 'is-me' : ''}" style="margin-right: 0; width: 28px; height: 28px; font-size: 12px; background-color: ${isSelected ? 'var(--error)' : 'var(--subtitle)'}">
                             ${p.name[0].toUpperCase()}
                          </div>
-                         <span class="player-name" style="font-size: 12px; text-align: center; width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${p.name}</span>
-                         ${voteCount > 0 ? `<span style="position: absolute; top: 4px; right: 4px; background: var(--error); color: white; font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 10px;">${voteCount}</span>` : ''}
+                         <span class="player-name" style="font-size: 10px; text-align: center; width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${p.name}</span>
+                         ${voteCount > 0 ? `<span style="position: absolute; top: 3px; right: 3px; background: var(--error); color: white; font-size: 9px; font-weight: 700; padding: 1px 5px; border-radius: 10px;">${voteCount}</span>` : ''}
                     `;
                     votingGrid.appendChild(btn);
                 });
@@ -356,24 +392,23 @@
                 };
 
                 noneBtn.innerHTML = `
-                     <div class="avatar" style="margin-right: 0; width: 32px; height: 32px; font-size: 14px; background-color: ${noneSelected ? 'var(--error)' : 'var(--subtitle)'}">
+                     <div class="avatar" style="margin-right: 0; width: 28px; height: 28px; font-size: 12px; background-color: ${noneSelected ? 'var(--error)' : 'var(--subtitle)'}">
                         ✕
                      </div>
-                     <span class="player-name" style="font-size: 12px; text-align: center; width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">None</span>
-                     ${noneVoteCount > 0 ? `<span style="position: absolute; top: 4px; right: 4px; background: var(--error); color: white; font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 10px;">${noneVoteCount}</span>` : ''}
+                     <span class="player-name" style="font-size: 10px; text-align: center; width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">None</span>
+                     ${noneVoteCount > 0 ? `<span style="position: absolute; top: 3px; right: 3px; background: var(--error); color: white; font-size: 9px; font-weight: 700; padding: 1px 5px; border-radius: 10px;">${noneVoteCount}</span>` : ''}
                 `;
                 votingGrid.appendChild(noneBtn);
 
-                // Submit Vote button
+                // Submit Vote button — rendered OUTSIDE the scrollable grid
                 if (canVote && !me.hasVoted) {
-                    const submitContainer = document.createElement('div');
-                    submitContainer.style.cssText = 'grid-column: 1 / -1; text-align: center; margin-top: 8px;';
+                    voteSubmitContainer.classList.remove('hidden');
 
                     const submitBtn = document.createElement('button');
                     submitBtn.className = 'btn btn-primary';
                     submitBtn.textContent = 'Submit Vote';
                     submitBtn.disabled = !selectedVoteId;
-                    submitBtn.style.cssText = 'padding: 12px 32px;';
+                    submitBtn.style.cssText = 'padding: 10px 32px; margin-top: 0; height: 40px; font-size: 14px;';
 
                     submitBtn.onclick = () => {
                         if (selectedVoteId) {
@@ -381,8 +416,7 @@
                         }
                     };
 
-                    submitContainer.appendChild(submitBtn);
-                    votingGrid.appendChild(submitContainer);
+                    voteSubmitContainer.appendChild(submitBtn);
                 }
 
                 if (me && me.hasVoted) {
