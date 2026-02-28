@@ -1,6 +1,6 @@
 {
   "name": "whos-the-spy",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "description": "Real-time multiplayer social deduction web game",
   "main": "src/server.js",
   "scripts": {
