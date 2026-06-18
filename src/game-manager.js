@@ -330,7 +330,7 @@ class GameManager {
 
         // Assign Roles Logic
         if (game.currentRound === 1) {
-            const pair = getRandomPair();
+            const pair = getRandomPair(game.wordPair);
             game.wordPair = pair;
             const activePlayers = game.players.filter(p => p.status === 'active' || p.status === 'waiting' || p.status === 'disconnected');
             // Activate everyone
@@ -527,9 +527,13 @@ class GameManager {
         const game = this.games.get(gameCode);
         if (!game) return { error: 'Game not found' };
 
+        if (game.creatorId !== playerId) return { error: 'Only host can start a new game' };
+
         game.status = 'playing';
         game.currentRound = 0;
         game.chatHistory = [];
+        game.votes = {};
+        game.lastRoundResult = null;
         game.players.forEach(p => {
             p.status = 'active';
             p.role = null;

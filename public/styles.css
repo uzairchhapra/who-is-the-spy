@@ -315,8 +315,16 @@ body {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 12px;
   padding: 16px 24px;
   border-bottom: 1px solid var(--divider);
+}
+
+.game-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
 }
 
 .game-code-badge {
@@ -328,6 +336,31 @@ body {
   font-family: ui-monospace, SFMono-Regular, monospace;
   border: none;
   box-shadow: none;
+}
+
+.host-skip-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 10px;
+  border: 1px solid rgba(255, 138, 128, 0.55);
+  border-radius: 6px;
+  background-color: rgba(255, 138, 128, 0.08);
+  color: var(--error);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 700;
+  transition: border-color 200ms ease, background-color 200ms ease, color 200ms ease;
+}
+
+.host-skip-btn:hover {
+  border-color: var(--error);
+  background-color: rgba(255, 138, 128, 0.16);
+}
+
+.host-skip-btn svg {
+  flex-shrink: 0;
 }
 
 .word-banner {

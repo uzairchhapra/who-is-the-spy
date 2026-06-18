@@ -48,10 +48,22 @@
                         </p>
                     </div>
                 </div>
-                <button id="leaveBtn"
-                    style="background: none; border: none; font-size: 12px; font-weight: 600; color: var(--subtitle); cursor: pointer; transition: color 0.2s;">
-                    EXIT
-                </button>
+                <div class="game-header-actions">
+                    <button id="skipGameBtn" class="host-skip-btn hidden" title="Start over with new words">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="23 4 23 10 17 10"></polyline>
+                            <polyline points="1 20 1 14 7 14"></polyline>
+                            <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10"></path>
+                            <path d="M20.49 15a9 9 0 0 1-14.85 3.36L1 14"></path>
+                        </svg>
+                        <span>Skip</span>
+                    </button>
+                    <button id="leaveBtn"
+                        style="background: none; border: none; font-size: 12px; font-weight: 600; color: var(--subtitle); cursor: pointer; transition: color 0.2s;">
+                        EXIT
+                    </button>
+                </div>
             </header>
 
             <!-- Word Banner -->
@@ -185,6 +197,7 @@
             const roundCounter = document.getElementById('roundCounter');
             const playerNameHeader = document.getElementById('playerNameHeader');
             const editNameIcon = document.getElementById('editNameIcon');
+            const skipGameBtn = document.getElementById('skipGameBtn');
 
             // UI
             const votingSection = document.getElementById('votingSection');
@@ -321,8 +334,15 @@
                 else if (game.gamePhase === 'voting') renderVotingUI(game);
                 else if (game.gamePhase === 'results' || game.gamePhase === 'ended') renderResultsUI(game);
 
+                renderHostControls(game);
                 renderStatusBar(game);
                 updateInputState(game);
+            }
+
+            function renderHostControls(game) {
+                const me = game.players.find(p => p.id === myId);
+                const canSkip = me && me.isCreator && game.status === 'playing' && game.gamePhase !== 'ended';
+                skipGameBtn.classList.toggle('hidden', !canSkip);
             }
 
             function renderDescriptionUI(game) {
@@ -650,6 +670,12 @@
 
             document.getElementById('newGameBtn').addEventListener('click', () => {
                 socket.emit('start-new-game', { gameCode: code });
+            });
+
+            skipGameBtn.addEventListener('click', () => {
+                if (confirm('Skip this game and deal a new set of words?')) {
+                    socket.emit('start-new-game', { gameCode: code });
+                }
             });
 
             editNameIcon.addEventListener('click', () => {
