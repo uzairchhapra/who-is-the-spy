@@ -8,6 +8,7 @@
  *   SCENARIO=happy-path npm run simulate
  *   SCENARIO=imposter-wins npm run simulate
  *   SCENARIO=tie-vote npm run simulate        # waits ~5s for round 2
+ *   SCENARIO=host-skip-game npm run simulate
  *   SCENARIO=reconnect npm run simulate
  *   SCENARIO=duplicate-refresh npm run simulate
  *   SCENARIO=simultaneous-renames npm run simulate
@@ -75,6 +76,7 @@ async function createClient(name) {
     await waitForEvent(socket, 'connect');
     const player = { name, socket, playerId: null, gameCode: null, gameState: null };
     socket.on('game-state-update', (g) => { player.gameState = g; });
+    socket.on('game-started', (g) => { player.gameState = g; });
     socket.on('error', (err) => console.log(`  [${name}] server error: ${err.message}`));
     return player;
 }
@@ -107,6 +109,13 @@ async function startGame(players, gameCode) {
     // Listen before emitting to avoid missing the event
     const started = waitForEvent(host.socket, 'game-started');
     host.socket.emit('start-game', { gameCode });
+    return started;
+}
+
+async function startNewGame(players, gameCode) {
+    const host = players[0];
+    const started = waitForEvent(host.socket, 'game-started');
+    host.socket.emit('start-new-game', { gameCode });
     return started;
 }
 
@@ -234,6 +243,37 @@ async function tieVote() {
 
     assert(game.lastRoundResult.winner === 'civilians', 'civilians should win in round 2');
     console.log('  ✓ round 2: civilians win');
+    disconnectAll(players);
+}
+
+async function hostSkipGame() {
+    console.log('\n[host-skip-game] Host skips an in-progress game and receives fresh words');
+    const players  = await createClients(['Alice', 'Bob', 'Carol', 'Dave']);
+    const gameCode = await setupGame(players);
+    let game       = await startGame(players, gameCode);
+    const firstPair = game.wordPair;
+
+    const firstTurn = players.find((p) => p.playerId === game.turnOrder[game.currentTurnIndex]);
+    const clueLogged = waitForGameState(
+        players[1].socket,
+        (g) => g.chatHistory.some((msg) => msg.type === 'description' && msg.message === 'already seen')
+    );
+    firstTurn.socket.emit('submit-description', { gameCode, description: 'already seen' });
+    await clueLogged;
+
+    game = await startNewGame(players, gameCode);
+
+    assert(game.status === 'playing', 'skipped game should keep room playing');
+    assert(game.gamePhase === 'description', 'new game should start in description phase');
+    assert(game.currentRound === 1, 'new game should reset to round 1');
+    assert(
+        game.wordPair.civilian !== firstPair.civilian || game.wordPair.imposter !== firstPair.imposter,
+        'new game should use a different word pair'
+    );
+    assert(!game.chatHistory.some((msg) => msg.message === 'already seen'), 'old clues should be cleared');
+    assert(game.players.every((p) => p.role && p.word), 'players should receive new roles and words');
+
+    console.log(`  ✓ new word pair: "${game.wordPair.civilian}" / "${game.wordPair.imposter}"`);
     disconnectAll(players);
 }
 
@@ -425,6 +465,7 @@ const SCENARIOS = {
     'happy-path':    happyPath,
     'imposter-wins': imposterWins,
     'tie-vote':      tieVote,
+    'host-skip-game': hostSkipGame,
     'reconnect':     reconnect,
     'mobile-suspend': mobileSuspend,
     'duplicate-refresh': duplicateRefresh,

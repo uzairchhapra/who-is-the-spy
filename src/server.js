@@ -22,6 +22,15 @@ const io = socketIo(server, {
 const gameManager = new GameManager((gameCode, game) => {
     io.to(gameCode).emit('game-state-update', game);
 });
+const roundTimers = new Map();
+
+function clearRoundTimer(gameCode) {
+    const timer = roundTimers.get(gameCode);
+    if (timer) {
+        clearTimeout(timer);
+        roundTimers.delete(gameCode);
+    }
+}
 
 // Serve static files with no-cache headers to prevent stale files
 app.use(express.static(path.join(__dirname, '../public'), {
@@ -72,6 +81,7 @@ io.on('connection', (socket) => {
         if (result.error) {
             socket.emit('error', { message: result.error });
         } else {
+            clearRoundTimer(gameCode);
             io.to(gameCode).emit('game-started', result.game);
         }
     });
@@ -105,10 +115,18 @@ io.on('connection', (socket) => {
         } else {
             io.to(gameCode).emit('game-state-update', result.game);
             if (result.event === 'round-results' && !result.winner) {
-                setTimeout(() => {
-                    const nextResult = gameManager.startRound(result.game);
+                clearRoundTimer(gameCode);
+                const expectedRound = result.game.currentRound;
+                const timer = setTimeout(() => {
+                    roundTimers.delete(gameCode);
+                    const game = gameManager.games.get(gameCode);
+                    if (!game || game.currentRound !== expectedRound || game.gamePhase !== 'results' || game.status !== 'playing') {
+                        return;
+                    }
+                    const nextResult = gameManager.startRound(game);
                     io.to(gameCode).emit('game-state-update', nextResult.game);
                 }, 5000);
+                roundTimers.set(gameCode, timer);
             }
         }
     });
@@ -134,7 +152,10 @@ io.on('connection', (socket) => {
         const playerId = gameManager.getPlayerId(socket.id);
         const result = gameManager.startNewGame(gameCode, playerId);
         if (result.error) socket.emit('error', { message: result.error });
-        else io.to(gameCode).emit('game-started', result.game);
+        else {
+            clearRoundTimer(gameCode);
+            io.to(gameCode).emit('game-started', result.game);
+        }
     });
 
     socket.on('update-player-name', ({ gameCode, newName }) => {
@@ -155,6 +176,7 @@ io.on('connection', (socket) => {
     socket.on('disconnect', () => {
         const result = gameManager.leaveGame(socket.id);
         if (result && result.game) {
+            if (!gameManager.games.has(result.gameCode)) clearRoundTimer(result.gameCode);
             io.to(result.gameCode).emit('game-state-update', result.game);
         }
     });

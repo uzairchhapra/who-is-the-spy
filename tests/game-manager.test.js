@@ -3,6 +3,7 @@
 const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
 const GameManager = require('../src/game-manager');
+const { wordPairs } = require('../src/word-pairs');
 
 // Creates a GM and populates n players (Alice + Bob, Carol, Dave, Eve...)
 function setup(n = 3) {
@@ -24,6 +25,22 @@ function completeDescriptions(gm, gameCode, game) {
     }
     return game;
 }
+
+describe('wordPairs', () => {
+    it('uses a broad, non-repeating word bank', () => {
+        assert.ok(wordPairs.length >= 200);
+        assert.ok(wordPairs.length <= 300);
+
+        const words = [];
+        for (const pair of wordPairs) {
+            assert.ok(pair.civilian && pair.imposter);
+            assert.notEqual(pair.civilian.toLowerCase(), pair.imposter.toLowerCase());
+            words.push(pair.civilian.toLowerCase(), pair.imposter.toLowerCase());
+        }
+
+        assert.equal(new Set(words).size, words.length);
+    });
+});
 
 describe('createGame', () => {
     it('creates game with correct initial state', () => {
@@ -256,6 +273,28 @@ describe('voting phase', () => {
 });
 
 describe('startNewGame', () => {
+    it('rejects non-host players', () => {
+        const { gm, gameCode, creatorId, playerIds } = setup(3);
+        gm.startGame(gameCode, creatorId);
+
+        const result = gm.startNewGame(gameCode, playerIds[1]);
+        assert.ok(result.error);
+    });
+
+    it('lets the host skip an in-progress game with fresh words', () => {
+        const { gm, gameCode, creatorId } = setup(3);
+        const firstGame = gm.startGame(gameCode, creatorId).game;
+        const firstPair = firstGame.wordPair;
+
+        const result = gm.startNewGame(gameCode, creatorId);
+        assert.ok(!result.error);
+        assert.equal(result.game.status, 'playing');
+        assert.equal(result.game.gamePhase, 'description');
+        assert.equal(result.game.currentRound, 1);
+        assert.notDeepEqual(result.game.wordPair, firstPair);
+        assert.ok(result.game.players.every(p => p.role !== null));
+    });
+
     it('resets roles and starts a fresh round', () => {
         const { gm, gameCode, creatorId } = setup(3);
         let { game } = gm.startGame(gameCode, creatorId);
