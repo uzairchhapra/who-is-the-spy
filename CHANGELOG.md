@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.2.1](https://github.com/uzairchhapra/who-is-the-spy/compare/whos-the-spy-v2.2.0...whos-the-spy-v2.2.1) (2026-06-18)
+
+
+### Bug Fixes
+
+* add social preview image ([6ca8eb7](https://github.com/uzairchhapra/who-is-the-spy/commit/6ca8eb7acc58e04589470ff0b0e09c5b948209d8))
+
 ## [2.2.0](https://github.com/uzairchhapra/who-is-the-spy/compare/whos-the-spy-v2.1.1...whos-the-spy-v2.2.0) (2026-06-18)
 
 
