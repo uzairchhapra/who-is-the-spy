@@ -70,6 +70,39 @@ describe('joinGame', () => {
         assert.equal(game.players[0].status, 'active');
     });
 
+    it('reconnects by previous player ID even when the submitted name is stale', () => {
+        const { gm, gameCode } = setup(1);
+        const firstPaul = gm.joinGame(gameCode, 's1', 'Paul');
+        const duplicatePaul = gm.joinGame(gameCode, 's2', 'Paul');
+        const duplicateId = duplicatePaul.playerId;
+        const game = gm.games.get(gameCode);
+        const duplicate = game.players.find(p => p.id === duplicateId);
+
+        assert.equal(duplicate.name, 'Paul (1)');
+        duplicate.status = 'disconnected';
+
+        const result = gm.joinGame(gameCode, 'new-socket', 'Paul', duplicateId);
+        assert.ok(!result.error);
+        assert.equal(result.playerId, duplicateId);
+        assert.equal(duplicate.status, 'active');
+        assert.equal(game.players.filter(p => p.name.startsWith('Paul')).length, 2);
+        assert.equal(firstPaul.playerId, game.players.find(p => p.name === 'Paul').id);
+    });
+
+    it('ignores an old socket disconnect when the player already reconnected', () => {
+        const { gm, gameCode, playerIds } = setup(2);
+        const aliceId = playerIds[0];
+        const game = gm.games.get(gameCode);
+
+        const result = gm.joinGame(gameCode, 'new-socket', 'Alice', aliceId);
+        assert.ok(!result.error);
+        assert.equal(result.playerId, aliceId);
+
+        gm.leaveGame('s0');
+        const alice = game.players.find(p => p.id === aliceId);
+        assert.equal(alice.status, 'active');
+    });
+
     it('player joining mid-game gets waiting status', () => {
         const { gm, gameCode, creatorId } = setup(3);
         gm.startGame(gameCode, creatorId);
@@ -77,6 +110,26 @@ describe('joinGame', () => {
         assert.ok(!result.error);
         const newPlayer = result.game.players.find(p => p.name === 'Latecomer');
         assert.equal(newPlayer.status, 'waiting');
+    });
+});
+
+describe('updatePlayerName', () => {
+    it('allows multiple players to rename and deduplicates conflicts', () => {
+        const { gm, gameCode, playerIds } = setup(4);
+        const [aliceId, bobId, carolId, daveId] = playerIds;
+
+        const alice = gm.updatePlayerName(gameCode, aliceId, 'Agent');
+        const bob = gm.updatePlayerName(gameCode, bobId, 'Agent');
+        const carol = gm.updatePlayerName(gameCode, carolId, 'Scout');
+        const dave = gm.updatePlayerName(gameCode, daveId, 'Agent');
+
+        assert.equal(alice.newName, 'Agent');
+        assert.equal(bob.newName, 'Agent (1)');
+        assert.equal(carol.newName, 'Scout');
+        assert.equal(dave.newName, 'Agent (2)');
+
+        const names = gm.games.get(gameCode).players.map(p => p.name);
+        assert.deepEqual(names.sort(), ['Agent', 'Agent (1)', 'Agent (2)', 'Scout'].sort());
     });
 });
 

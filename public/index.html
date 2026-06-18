@@ -86,9 +86,10 @@
                 window.location.href = `/lobby?code=${gameCode}`;
             });
 
-            socket.on('game-joined', ({ gameCode, playerId }) => {
+            socket.on('game-joined', ({ gameCode, playerId, gameState }) => {
                 const playerName = document.getElementById('joinName').value || getQueryParam('name');
-                saveSession(gameCode, playerId, playerName);
+                const canonicalName = gameState?.players.find(p => p.id === playerId)?.name || playerName;
+                saveSession(gameCode, playerId, canonicalName);
                 window.location.href = `/lobby?code=${gameCode}`;
             });
 
