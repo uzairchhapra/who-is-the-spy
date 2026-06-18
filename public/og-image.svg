@@ -1,0 +1,67 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" role="img" aria-labelledby="title desc">
+  <title id="title">Who's the Spy social preview</title>
+  <desc id="desc">A dark social preview card for the Who's the Spy multiplayer word game.</desc>
+  <defs>
+    <linearGradient id="background" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0f0d16"/>
+      <stop offset="0.56" stop-color="#15131d"/>
+      <stop offset="1" stop-color="#211f2d"/>
+    </linearGradient>
+    <radialGradient id="gold-glow" cx="18%" cy="16%" r="54%">
+      <stop offset="0" stop-color="#ffd166" stop-opacity="0.42"/>
+      <stop offset="0.55" stop-color="#ffd166" stop-opacity="0.08"/>
+      <stop offset="1" stop-color="#ffd166" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="teal-glow" cx="86%" cy="22%" r="52%">
+      <stop offset="0" stop-color="#5dd6c8" stop-opacity="0.34"/>
+      <stop offset="0.58" stop-color="#5dd6c8" stop-opacity="0.07"/>
+      <stop offset="1" stop-color="#5dd6c8" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="soft-shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="26" stdDeviation="30" flood-color="#000000" flood-opacity="0.36"/>
+    </filter>
+  </defs>
+
+  <rect width="1200" height="630" fill="url(#background)"/>
+  <rect width="1200" height="630" fill="url(#gold-glow)"/>
+  <rect width="1200" height="630" fill="url(#teal-glow)"/>
+
+  <g opacity="0.12" fill="none" stroke="#fbf7ef" stroke-width="2">
+    <path d="M106 78c46-42 111-46 149-9 35 34 30 85-13 122"/>
+    <path d="M946 100c72-35 145-7 169 61 19 54-7 111-66 138"/>
+    <path d="M76 530c78-68 175-68 238 2"/>
+    <path d="M866 520c54-58 140-68 209-23"/>
+  </g>
+
+  <g filter="url(#soft-shadow)">
+    <rect x="96" y="92" width="1008" height="446" rx="28" fill="#211f2d" stroke="#ffffff" stroke-opacity="0.14" stroke-width="2"/>
+    <rect x="96" y="92" width="1008" height="446" rx="28" fill="none" stroke="#ffd166" stroke-opacity="0.08" stroke-width="10"/>
+  </g>
+
+  <g transform="translate(152 146)">
+    <g transform="translate(0 8)">
+      <circle cx="58" cy="58" r="58" fill="#ffd166"/>
+      <path d="M58 26c-18 0-32 14-32 32s14 32 32 32 32-14 32-32-14-32-32-32Zm0 14a18 18 0 0 1 17 12H41a18 18 0 0 1 17-12Zm0 36a18 18 0 0 1-17-12h34a18 18 0 0 1-17 12Z" fill="#191521"/>
+      <path d="M34 36c9-12 39-16 58 4" fill="none" stroke="#191521" stroke-width="8" stroke-linecap="round"/>
+    </g>
+
+    <text x="156" y="73" fill="#ffe29a" font-family="Inter, Arial, sans-serif" font-size="78" font-weight="900">Who's the Spy</text>
+    <text x="156" y="128" fill="#b9b3c9" font-family="Inter, Arial, sans-serif" font-size="30" font-weight="600">Clues, bluffing, suspicion, and one odd word.</text>
+  </g>
+
+  <g transform="translate(154 334)">
+    <rect x="0" y="0" width="244" height="94" rx="18" fill="#181621" stroke="#ffffff" stroke-opacity="0.12"/>
+    <text x="122" y="38" text-anchor="middle" fill="#5dd6c8" font-family="Inter, Arial, sans-serif" font-size="22" font-weight="800">CIVILIANS</text>
+    <text x="122" y="70" text-anchor="middle" fill="#fbf7ef" font-family="Inter, Arial, sans-serif" font-size="26" font-weight="900">same word</text>
+
+    <rect x="282" y="0" width="244" height="94" rx="18" fill="#181621" stroke="#ffffff" stroke-opacity="0.12"/>
+    <text x="404" y="38" text-anchor="middle" fill="#ef476f" font-family="Inter, Arial, sans-serif" font-size="22" font-weight="800">IMPOSTER</text>
+    <text x="404" y="70" text-anchor="middle" fill="#fbf7ef" font-family="Inter, Arial, sans-serif" font-size="26" font-weight="900">secret twist</text>
+
+    <rect x="564" y="0" width="244" height="94" rx="18" fill="#181621" stroke="#ffffff" stroke-opacity="0.12"/>
+    <text x="686" y="38" text-anchor="middle" fill="#ffd166" font-family="Inter, Arial, sans-serif" font-size="22" font-weight="800">EVERYONE</text>
+    <text x="686" y="70" text-anchor="middle" fill="#fbf7ef" font-family="Inter, Arial, sans-serif" font-size="26" font-weight="900">votes</text>
+  </g>
+
+  <text x="600" y="492" text-anchor="middle" fill="#fbf7ef" font-family="Inter, Arial, sans-serif" font-size="30" font-weight="800">Start a room, share the link, find the odd word.</text>
+</svg>
