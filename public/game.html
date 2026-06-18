@@ -216,6 +216,7 @@
             let myId = session.playerId;
             let amIImposter = false;
             let selectedVoteId = null;
+            let isEditingName = false;
 
             socket.on('game-state-update', (game) => {
                 console.log('Game Update Received:', game);
@@ -241,7 +242,9 @@
             });
 
             socket.on('game-joined', ({ gameCode, playerId, gameState: game }) => {
-                saveSession(gameCode, playerId, session.playerName);
+                const canonicalName = game.players.find(p => p.id === playerId)?.name || session.playerName;
+                saveSession(gameCode, playerId, canonicalName);
+                session.playerName = canonicalName;
                 myId = playerId;
                 gameState = game;
                 updateMyIdentity(game);
@@ -256,9 +259,9 @@
             socket.on('player-name-updated', ({ playerId, newName }) => {
                 if (playerId === myId) {
                     // Update local session storage
-                    const session = getSession();
+                    const currentSession = getSession();
+                    saveSession(currentSession.gameCode, currentSession.playerId, newName);
                     session.playerName = newName;
-                    saveSession(session.gameCode, session.playerId, newName);
                 }
             });
 
@@ -306,7 +309,9 @@
 
                 // Get name from gameState, not session (in case it was just updated)
                 const me = game.players.find(p => p.id === myId);
-                playerNameHeader.textContent = me ? me.name : session.playerName;
+                if (!isEditingName) {
+                    playerNameHeader.textContent = me ? me.name : session.playerName;
+                }
 
                 votingSection.classList.add('hidden');
                 resultsUI.classList.add('hidden');
@@ -647,8 +652,6 @@
                 socket.emit('start-new-game', { gameCode: code });
             });
 
-            let isEditingName = false;
-
             editNameIcon.addEventListener('click', () => {
                 if (isEditingName) return;
 
@@ -677,24 +680,33 @@
 
                 // Replace text with input
                 const originalText = playerNameHeader.textContent;
+                let editFinished = false;
+
+                const finishEdit = (shouldSave) => {
+                    if (editFinished) return;
+                    editFinished = true;
+                    const newName = input.value.trim();
+                    isEditingName = false;
+                    playerNameHeader.textContent = originalText;
+
+                    if (shouldSave && newName && newName !== currentName) {
+                        socket.emit('update-player-name', { gameCode: code, newName: newName });
+                    } else if (gameState) {
+                        renderUI(gameState);
+                    }
+                };
+
                 playerNameHeader.textContent = '';
                 playerNameHeader.appendChild(input);
                 input.focus();
                 input.select();
 
                 const saveEdit = () => {
-                    const newName = input.value.trim();
-                    isEditingName = false;
-                    playerNameHeader.textContent = originalText;
-
-                    if (newName && newName !== currentName) {
-                        socket.emit('update-player-name', { gameCode: code, newName: newName });
-                    }
+                    finishEdit(true);
                 };
 
                 const cancelEdit = () => {
-                    isEditingName = false;
-                    playerNameHeader.textContent = originalText;
+                    finishEdit(false);
                 };
 
                 // Save on Enter, cancel on Escape

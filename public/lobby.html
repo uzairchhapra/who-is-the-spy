@@ -109,24 +109,39 @@
             const startBtn = document.getElementById('startBtn');
             const waitingMsg = document.getElementById('waitingMsg');
             const playerCount = document.getElementById('playerCount');
+            let isEditingName = false;
+            let pendingGameState = null;
 
             socket.on('game-state-update', (game) => {
                 if (game.status === 'playing') {
                     window.location.href = `/game?code=${game.gameCode}`;
                     return;
                 }
+                applyGameState(game);
+            });
+
+            function applyGameState(game) {
+                if (isEditingName) {
+                    pendingGameState = game;
+                    playerCount.textContent = `${game.players.length}/15`;
+                    updateControls(game);
+                    return;
+                }
+
+                pendingGameState = null;
                 renderPlayers(game.players);
                 updateControls(game);
-            });
+            }
 
             socket.on('game-started', () => {
                 window.location.href = `/game?code=${code}`;
             });
 
             socket.on('game-joined', ({ gameCode, playerId, gameState }) => {
-                saveSession(gameCode, playerId, session.playerName);
-                renderPlayers(gameState.players);
-                updateControls(gameState);
+                const canonicalName = gameState.players.find(p => p.id === playerId)?.name || session.playerName;
+                saveSession(gameCode, playerId, canonicalName);
+                session.playerName = canonicalName;
+                applyGameState(gameState);
             });
 
             socket.on('player-name-updated', ({ playerId, newName }) => {
@@ -134,10 +149,9 @@
                     // Update local session storage
                     const currentSession = getSession();
                     saveSession(currentSession.gameCode, currentSession.playerId, newName);
+                    session.playerName = newName;
                 }
             });
-
-            let isEditingName = false;
 
             function renderPlayers(players) {
                 playerList.innerHTML = '';
@@ -196,7 +210,10 @@
 
                 // Find the player name element
                 const playerNameEl = playerList.querySelector('.player-name[data-player-name="true"]');
-                if (!playerNameEl) return;
+                if (!playerNameEl) {
+                    isEditingName = false;
+                    return;
+                }
 
                 // Create input element
                 const input = document.createElement('input');
@@ -218,6 +235,21 @@
 
                 // Save original content
                 const originalHTML = playerNameEl.innerHTML;
+                let editFinished = false;
+
+                const finishEdit = (shouldSave) => {
+                    if (editFinished) return;
+                    editFinished = true;
+                    const newName = input.value.trim();
+                    isEditingName = false;
+                    playerNameEl.innerHTML = originalHTML;
+
+                    if (shouldSave && newName && newName !== currentName) {
+                        socket.emit('update-player-name', { gameCode: code, newName: newName });
+                    } else if (pendingGameState) {
+                        applyGameState(pendingGameState);
+                    }
+                };
 
                 // Replace with input
                 playerNameEl.innerHTML = '';
@@ -226,18 +258,11 @@
                 input.select();
 
                 const saveEdit = () => {
-                    const newName = input.value.trim();
-                    isEditingName = false;
-                    playerNameEl.innerHTML = originalHTML;
-
-                    if (newName && newName !== currentName) {
-                        socket.emit('update-player-name', { gameCode: code, newName: newName });
-                    }
+                    finishEdit(true);
                 };
 
                 const cancelEdit = () => {
-                    isEditingName = false;
-                    playerNameEl.innerHTML = originalHTML;
+                    finishEdit(false);
                 };
 
                 // Save on Enter, cancel on Escape

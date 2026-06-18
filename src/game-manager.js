@@ -20,6 +20,11 @@ class GameManager {
         return session ? session.playerId : null;
     }
 
+    hasActiveSession(gameCode, playerId) {
+        return Array.from(this.playerSessions.values())
+            .some(session => session.gameCode === gameCode && session.playerId === playerId);
+    }
+
     createGame(socketId, creatorName) {
         const gameCode = this.generateGameCode();
         const playerId = this.generateId();
@@ -69,8 +74,10 @@ class GameManager {
         // Check Reconnection (If previous ID provided and exists in game)
         if (previousPlayerId) {
             const existingPlayer = game.players.find(p => p.id === previousPlayerId);
-            if (existingPlayer && existingPlayer.name === playerName) {
-                // Reconnect successful (Only if name matches to prevent accidental session reuse)
+            if (existingPlayer) {
+                // Reconnect successful. The playerId is the server-issued identity for this game.
+                // Do not require the name to match; mobile refreshes can send stale display names
+                // and the server may have canonicalized duplicates with " (1)" suffixes.
                 if (existingPlayer.status === 'disconnected') {
                     if (game.status === 'lobby' || game.status === 'ended') {
                         existingPlayer.status = 'active';
@@ -157,6 +164,12 @@ class GameManager {
         this.playerSessions.delete(socketId);
 
         if (!game) return null;
+
+        // If the same player already has another live socket, this is an old socket closing
+        // after a refresh/reconnect. Keep the player active instead of marking them away.
+        if (this.hasActiveSession(gameCode, playerId)) {
+            return { gameCode, game };
+        }
 
         const playerIndex = game.players.findIndex(p => p.id === playerId);
         if (playerIndex === -1) return { gameCode, game }; // Should not happen

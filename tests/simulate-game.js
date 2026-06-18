@@ -9,6 +9,8 @@
  *   SCENARIO=imposter-wins npm run simulate
  *   SCENARIO=tie-vote npm run simulate        # waits ~5s for round 2
  *   SCENARIO=reconnect npm run simulate
+ *   SCENARIO=duplicate-refresh npm run simulate
+ *   SCENARIO=simultaneous-renames npm run simulate
  *   SERVER_URL=https://your-vps npm run simulate
  */
 
@@ -94,6 +96,7 @@ async function setupGame(players) {
         const joined = await waitForEvent(p.socket, 'game-joined');
         p.playerId  = joined.playerId;
         p.gameCode  = gameCode;
+        p.gameState = joined.gameState;
     }
 
     return gameCode;
@@ -340,6 +343,80 @@ async function mobileSuspend() {
     disconnectAll(players);
 }
 
+async function duplicateRefresh() {
+    console.log('\n[duplicate-refresh] Duplicate display names survive refresh without creating suffix spam');
+    const players  = await createClients(['Alice', 'Paul', 'Paul']);
+    const gameCode = await setupGame(players);
+
+    const duplicatePaul = players[2];
+    const savedId = duplicatePaul.playerId;
+    const staleName = 'Paul';
+    const canonicalName = duplicatePaul.gameState.players.find((p) => p.id === savedId)?.name;
+
+    assert(canonicalName === 'Paul (1)', 'second Paul should receive canonical suffix');
+    console.log(`  second Paul joined as "${canonicalName}"`);
+
+    // Simulate a mobile/browser refresh race:
+    // the new socket restores the saved playerId while still sending the stale raw name,
+    // then the old socket disconnect arrives afterward.
+    const newSocket = io(SERVER_URL, { transports: ['websocket'] });
+    await waitForEvent(newSocket, 'connect');
+    newSocket.on('game-state-update', (g) => { duplicatePaul.gameState = g; });
+    newSocket.on('error', (err) => console.log(`  [${canonicalName}] error: ${err.message}`));
+
+    newSocket.emit('join-game', { gameCode, playerName: staleName, previousPlayerId: savedId });
+    const rejoined = await waitForEvent(newSocket, 'game-joined');
+
+    assert(rejoined.playerId === savedId, 'stale-name reconnect should keep same player ID');
+    assert(rejoined.gameState.players.length === 3, 'reconnect should not add a new player');
+    assert(!rejoined.gameState.players.some((p) => p.name === 'Paul (2)'), 'should not create Paul (2)');
+
+    duplicatePaul.socket.disconnect();
+    duplicatePaul.socket = newSocket;
+    await delay(300);
+
+    const hostView = players[0].gameState.players.find((p) => p.id === savedId);
+    const currentNames = players[0].gameState.players.map((p) => p.name);
+    assert(hostView.status === 'active', 'old socket disconnect should not mark reconnected player away');
+    assert(currentNames.filter((name) => name.startsWith('Paul')).length === 2, 'only two Paul players should be visible');
+    assert(!currentNames.includes('Paul (2)'), 'Paul (2) should not be visible');
+
+    console.log('  ✓ stale-name refresh restored existing Paul (1), no Paul (2)');
+    disconnectAll(players);
+}
+
+async function simultaneousRenames() {
+    console.log('\n[simultaneous-renames] Multiple players rename at nearly the same time');
+    const players  = await createClients(['Alice', 'Bob', 'Carol', 'Dave']);
+    const gameCode = await setupGame(players);
+
+    const renamed = waitForGameState(
+        players[0].socket,
+        (g) => {
+            const names = g.players.map((p) => p.name);
+            return names.includes('Agent') &&
+                names.includes('Agent (1)') &&
+                names.includes('Scout') &&
+                names.includes('Agent (2)');
+        },
+        6000
+    );
+
+    players[0].socket.emit('update-player-name', { gameCode, newName: 'Agent' });
+    players[1].socket.emit('update-player-name', { gameCode, newName: 'Agent' });
+    players[2].socket.emit('update-player-name', { gameCode, newName: 'Scout' });
+    players[3].socket.emit('update-player-name', { gameCode, newName: 'Agent' });
+
+    const game = await renamed;
+    const names = game.players.map((p) => p.name);
+
+    assert(names.filter((name) => name.startsWith('Agent')).length === 3, 'three Agent names should be present');
+    assert(new Set(names).size === names.length, 'renamed players should have unique display names');
+    console.log(`  ✓ final names: ${names.join(', ')}`);
+
+    disconnectAll(players);
+}
+
 // ---------------------------------------------------------------------------
 // Runner
 // ---------------------------------------------------------------------------
@@ -350,6 +427,8 @@ const SCENARIOS = {
     'tie-vote':      tieVote,
     'reconnect':     reconnect,
     'mobile-suspend': mobileSuspend,
+    'duplicate-refresh': duplicateRefresh,
+    'simultaneous-renames': simultaneousRenames,
 };
 
 async function main() {
