@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.1.1](https://github.com/uzairchhapra/who-is-the-spy/compare/whos-the-spy-v2.1.0...whos-the-spy-v2.1.1) (2026-06-18)
+
+
+### Bug Fixes
+
+* stabilize reconnects and name edits ([1bc999d](https://github.com/uzairchhapra/who-is-the-spy/commit/1bc999d1c7bda96bffafdcacd7a8a26eeeb8c506))
+
 ## [2.1.0](https://github.com/uzairchhapra/who-is-the-spy/compare/whos-the-spy-v2.0.0...whos-the-spy-v2.1.0) (2026-02-28)
 
 
