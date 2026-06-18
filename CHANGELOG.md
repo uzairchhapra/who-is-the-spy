@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.2.0](https://github.com/uzairchhapra/who-is-the-spy/compare/whos-the-spy-v2.1.1...whos-the-spy-v2.2.0) (2026-06-18)
+
+
+### Features
+
+* add host game skip and expand word bank ([242786d](https://github.com/uzairchhapra/who-is-the-spy/commit/242786da2fe136983e04e763b29ae8d5520c6607))
+
 ## [2.1.1](https://github.com/uzairchhapra/who-is-the-spy/compare/whos-the-spy-v2.1.0...whos-the-spy-v2.1.1) (2026-06-18)
 
 
