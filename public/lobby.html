@@ -285,13 +285,14 @@
                 const currentSession = getSession();
                 const me = game.players.find(p => p.id === currentSession.playerId);
                 const isHost = me && me.isCreator;
-                const canStart = game.players.length >= 3;
+                const availablePlayers = game.players.filter(p => p.status !== 'disconnected');
+                const canStart = availablePlayers.length >= 3;
 
                 if (isHost) {
                     startBtn.classList.remove('hidden');
                     waitingMsg.classList.add('hidden');
                     startBtn.disabled = !canStart;
-                    startBtn.textContent = canStart ? 'Start Game' : `Need ${3 - game.players.length} more player(s)`;
+                    startBtn.textContent = canStart ? 'Start Game' : `Need ${3 - availablePlayers.length} more player(s)`;
                 } else {
                     startBtn.classList.add('hidden');
                     waitingMsg.classList.remove('hidden');
